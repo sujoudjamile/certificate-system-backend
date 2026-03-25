@@ -1,24 +1,87 @@
-require("dotenv").config();// Load environment variables
-const express = require("express"); //Create APIs, Handle routes, Handle requests & responses,Build backend logic easily //
-const cors = require("cors");//Your frontend (React) runs on port 3000,Your backend runs on port 5000 ,Browsers normally block that communication.cors() allows frontend and backend to talk safely.
-const db = require("./config/db");
+// server.js
 
-const userRoutes = require("./routes/userRoutes");// Import routes
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+
+const userRoutes = require("./routes/userRoutes");
 const universityRoutes = require("./routes/universityRoutes");
 const staffRoutes = require("./routes/staffRoutes");
+const studentRoutes = require("./routes/studentRoutes");
 
-const app = express();//This creates your Express application.Think of it like:👉 "Start my backend server engine"
+const errorHandler = require("./middleware/errorHandler");
 
-app.use(cors());// Enable CORS so frontend can communicate with backend
-app.use(express.json());// Allow server to read JSON data from requests
-app.use("/api/users", userRoutes);// Use user routes
+const app = express();
+
+/*
+==================================
+SECURITY MIDDLEWARE
+==================================
+*/
+
+// Adds basic HTTP security headers
+app.use(helmet());
+
+// Enable CORS
+app.use(cors());
+
+// Allow server to read JSON body
+app.use(express.json());
+
+/*
+==================================
+RATE LIMITING
+==================================
+Basic protection against brute-force / spam requests
+*/
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per window
+  message: {
+    status: "error",
+    message: "Too many requests from this IP. Please try again later.",
+  },
+});
+
+app.use("/api", apiLimiter);
+
+/*
+==================================
+ROUTES
+==================================
+*/
+app.use("/api/users", userRoutes);
 app.use("/api/universities", universityRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/students", studentRoutes);
 
-app.get("/", (req, res) => {// Test route to check if server is running
+/*
+==================================
+TEST ROUTE
+==================================
+*/
+app.get("/", (req, res) => {
   res.send("Certificate System API Running...");
 });
 
-app.listen(5000, () => {// Start server on port 5000
-  console.log("Server running on port 5000");
+/*
+==================================
+GLOBAL ERROR HANDLER
+==================================
+Must be after all routes
+*/
+app.use(errorHandler);
+
+/*
+==================================
+START SERVER
+==================================
+*/
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

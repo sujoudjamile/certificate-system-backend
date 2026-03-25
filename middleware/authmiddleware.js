@@ -1,41 +1,54 @@
-// Import JWT library
+// middleware/authMiddleware.js
+
 const jwt = require("jsonwebtoken");
 
 /*
-  This middleware checks if the user is authenticated.
-  It verifies the JWT token sent in the Authorization header.
+==================================
+AUTHENTICATE TOKEN
+==================================
+This middleware:
+1. Checks if Authorization header exists
+2. Validates Bearer token format
+3. Verifies JWT token
+4. Stores decoded user data in req.user
 */
 const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
-  // Get the Authorization header
-  const authHeader = req.headers["authorization"];
-
-  // If no header exists → block access
+  // No Authorization header
   if (!authHeader) {
     return res.status(401).json({
-      message: "Access denied. No token provided."
+      status: "error",
+      message: "Access denied. No token provided.",
     });
   }
 
-  // Remove "Bearer " from token
-  const token = authHeader.split(" ")[1];
+  // Expected format: Bearer <token>
+  const parts = authHeader.split(" ");
+
+  if (parts.length !== 2 || parts[0] !== "Bearer") {
+    return res.status(401).json({
+      status: "error",
+      message: "Invalid authorization format. Use Bearer token.",
+    });
+  }
+
+  const token = parts[1];
 
   try {
-    // Verify token using secret from .env
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Save user data into request object
+    // Save decoded payload into request
     req.user = decoded;
 
-    // Continue to next middleware
     next();
-
   } catch (error) {
     return res.status(403).json({
-      message: "Invalid or expired token."
+      status: "error",
+      message: "Invalid or expired token.",
     });
   }
 };
 
-// Export middleware
 module.exports = authenticateToken;

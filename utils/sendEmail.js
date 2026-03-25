@@ -2,22 +2,32 @@
 
 const nodemailer = require("nodemailer");
 
-// Create email transporter using Gmail
+/*
+==================================
+EMAIL TRANSPORTER
+==================================
+Uses Gmail SMTP credentials from .env
+*/
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // email address from .env
-    pass: process.env.EMAIL_PASS, // app password from .env
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
-// Reusable function to send emails
+/*
+==================================
+SEND EMAIL
+==================================
+Reusable helper for sending HTML emails
+*/
 const sendEmail = async ({ to, subject, html }) => {
   return transporter.sendMail({
     from: `"CertifyLB" <${process.env.EMAIL_USER}>`,
-    to,       // receiver email
-    subject,  // email subject
-    html,     // email body in HTML format
+    to,
+    subject,
+    html,
   });
 };
 

@@ -1,22 +1,24 @@
+// routes/universityRoutes.js
 
 const express = require("express");
 const router = express.Router();
 
-// Import controller
 const { createUniversity } = require("../controllers/universityController");
 
-// Import middlewares
-const authenticateToken = require("../middleware/authmiddleware");
-const authorizeRoles = require("../middleware/rolemiddleware");
+const authenticateToken = require("../middleware/authMiddleware");
+const authorizeRoles = require("../middleware/roleMiddleware");
 
 /*
-  Only super_admin can create university
+==================================
+UNIVERSITY ROUTES
+==================================
+Only super_admin can create a university
 */
 router.post(
   "/",
-  authenticateToken,          // 1️⃣ First check if logged in
-  authorizeRoles("super_admin"), // 2️⃣ Then check role
-  createUniversity            // 3️⃣ Then run controller
+  authenticateToken,
+  authorizeRoles("super_admin"),
+  createUniversity
 );
 
 module.exports = router;
