@@ -1,28 +1,33 @@
+// middleware/roleMiddleware.js
+
 /*
-  This middleware checks if user has allowed role.
-  Example: authorizeRoles("super_admin")
+==================================
+AUTHORIZE ROLES
+==================================
+This middleware checks whether the logged-in user
+has one of the allowed roles.
+Example:
+authorizeRoles("super_admin")
+authorizeRoles("admin", "staff")
 */
-
 const authorizeRoles = (...allowedRoles) => {
-
-  // Return another middleware function
   return (req, res, next) => {
-
-    // If no user found (token missing)
+    // No authenticated user found
     if (!req.user) {
       return res.status(401).json({
-        message: "Unauthorized."
+        status: "error",
+        message: "Unauthorized.",
       });
     }
 
-    // If role not allowed
+    // Role not allowed
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
-        message: "Access forbidden: insufficient permissions."
+        status: "error",
+        message: "Access forbidden: insufficient permissions.",
       });
     }
 
-    // Role allowed → continue
     next();
   };
 };

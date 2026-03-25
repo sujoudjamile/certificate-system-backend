@@ -1,60 +1,52 @@
+// controllers/universityController.js
 
-// Import database pool
 const db = require("../config/db");
-
-// Import crypto for:
-// 1) random activation key
-// 2) random verification token
-// 3) RSA key pair generation
 const crypto = require("crypto");
-const { generateKeyPairSync } = require("crypto");
-
-// Import email helper
 const sendEmail = require("../utils/sendEmail");
-
-// Import async error wrapper
 const asyncHandler = require("../utils/asyncHandler");
-
-// Import custom app error
 const AppError = require("../utils/AppError");
+const { createVaultKey, getVaultPublicKey } = require("../utils/vaultClient");
 
-// Import helper that encrypts the private key before saving it
-const { encryptPrivateKey } = require("../utils/keyEncryption");
+/*
+==================================
+HELPER
+==================================
+*/
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
 /*
 ==================================
 CREATE UNIVERSITY
 ==================================
-This function does the following:
-1. Validate input
-2. Generate activation key for the university
-3. Generate verification token for the admin
-4. Generate RSA public/private keys
-5. Encrypt the private key
-6. Store university in database
-7. Store admin account in database
-8. Commit transaction
-9. Send activation email
+This function:
+1. Validates input
+2. Generates activation key
+3. Generates admin verification token
+4. Creates RSA key inside Vault
+5. Reads public key from Vault
+6. Stores public key + key reference in DB
+7. Creates admin account
+8. Sends activation email
 */
 const createUniversity = asyncHandler(async (req, res) => {
-  // Read data sent from frontend/Postman
   const { universityName, adminName, adminEmail } = req.body;
 
-  // Basic validation
   if (!universityName || !adminName || !adminEmail) {
     throw new AppError("All fields are required", 400);
   }
 
-  // Get one DB connection from the pool
-  // We need one connection because transactions must stay on the same connection
+  if (!isValidEmail(adminEmail)) {
+    throw new AppError("Invalid admin email format", 400);
+  }
+
   const connection = await db.getConnection();
 
   try {
-    // Start transaction
-    // This means either all inserts succeed together, or all fail together
     await connection.beginTransaction();
 
-    // Check if admin email already exists
     const [existingUsers] = await connection.query(
       "SELECT id FROM users WHERE email = ?",
       [adminEmail]
@@ -64,56 +56,33 @@ const createUniversity = asyncHandler(async (req, res) => {
       throw new AppError("A user with this admin email already exists", 400);
     }
 
-    // Generate a random activation key for the university
+    // Generate university activation key
     const activationKey = crypto.randomBytes(16).toString("hex");
 
-    // Generate a verification token for admin activation
+    // Generate admin verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
-
-    // Token expiry = 24 hours from now
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Generate RSA key pair for this university
-    // publicKey -> used later to verify signatures
-    // privateKey -> used later to sign certificates
-    const { publicKey, privateKey } = generateKeyPairSync("rsa", {
-      modulusLength: 2048,
-      publicKeyEncoding: {
-        type: "spki",
-        format: "pem",
-      },
-      privateKeyEncoding: {
-        type: "pkcs8",
-        format: "pem",
-      },
-    });
+    // Better unique naming for Vault key
+    const keyReference = `university_${crypto.randomUUID()}_key`;
 
-    // Encrypt the private key before saving it
-    const encryptedPrivateKey = encryptPrivateKey(privateKey);
+    // Create RSA key in Vault
+    await createVaultKey(keyReference);
 
-    // Insert university into database
-    // Notice:
-    // - public_key is stored normally
-    // - private key is stored in encrypted form
+    // Read public key from Vault
+    const publicKey = await getVaultPublicKey(keyReference);
+
+    // Insert university
     const [universityResult] = await connection.query(
       `INSERT INTO universities
-       (name, activation_key, public_key, private_key_encrypted, private_key_iv, private_key_tag)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        universityName,
-        activationKey,
-        publicKey,
-        encryptedPrivateKey.encryptedData,
-        encryptedPrivateKey.iv,
-        encryptedPrivateKey.tag,
-      ]
+       (name, activation_key, public_key, key_reference)
+       VALUES (?, ?, ?, ?)`,
+      [universityName, activationKey, publicKey, keyReference]
     );
 
-    // Get the new university ID
     const universityId = universityResult.insertId;
 
-    // Insert university admin user
-    // password is null because admin will set it later after email verification
+    // Insert admin user
     const [adminResult] = await connection.query(
       `INSERT INTO users
        (name, email, password, role, university_id, is_verified, verification_token, verification_expires)
@@ -130,15 +99,10 @@ const createUniversity = asyncHandler(async (req, res) => {
       ]
     );
 
-    // If both inserts succeed, save them permanently
     await connection.commit();
 
-    // Build activation link
     const verifyLink = `${process.env.FRONTEND_URL}/activate-account?token=${verificationToken}`;
 
-    // Send email after commit
-    // Why after commit?
-    // So we do not send an email for data that failed to save
     try {
       await sendEmail({
         to: adminEmail,
@@ -151,33 +115,32 @@ const createUniversity = asyncHandler(async (req, res) => {
           <p>This link will expire in 24 hours.</p>
         `,
       });
-    } catch (emailError) {
-      // The DB part succeeded, but email failed
-      // We return a warning instead of crashing the request
+
       return res.status(201).json({
-        status: "warning",
-        message: "University created successfully, but email could not be sent.",
+        status: "success",
+        message:
+          "University created successfully. Verification email sent to the admin.",
         universityId,
         adminId: adminResult.insertId,
         activationKey,
+        keyReference,
+      });
+    } catch (emailError) {
+      return res.status(201).json({
+        status: "warning",
+        message:
+          "University created successfully, but email could not be sent.",
+        universityId,
+        adminId: adminResult.insertId,
+        activationKey,
+        keyReference,
         emailError: emailError.message,
       });
     }
-
-    // Final success response
-    return res.status(201).json({
-      status: "success",
-      message: "University created successfully. Verification email sent to the admin.",
-      universityId,
-      adminId: adminResult.insertId,
-      activationKey,
-    });
   } catch (error) {
-    // If any DB step fails before commit, undo everything
     await connection.rollback();
     throw error;
   } finally {
-    // Always release the connection back to the pool
     connection.release();
   }
 });

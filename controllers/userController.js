@@ -1,180 +1,36 @@
-// Import database pool
-// This comes from mysql2/promise, so we use await with db.query(...)
+// controllers/userController.js
+
 const db = require("../config/db");
-
-// Import bcrypt for password hashing
 const bcrypt = require("bcrypt");
-
-// Import JWT for login token creation
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+
+const sendEmail = require("../utils/sendEmail");
+const asyncHandler = require("../utils/asyncHandler");
+const AppError = require("../utils/AppError");
 
 /*
 ==================================
-REGISTER USER
+HELPERS
 ==================================
-Only super_admin should be allowed to access this route
-through middleware in routes.
 */
-const registerUser = async (req, res) => {
-  // Get data from request body
-  const { name, email, password, role, university_id } = req.body;
 
-  try {
-    // Check required fields
-    if (!name || !email || !password || !role) {
-      
-      return res.status(400).json({
-        message: "All fields are required",
-      });
-    }
-     // Allow only valid roles
-      const allowedRoles = ["super_admin", "admin", "staff"];
-
-     if (!allowedRoles.includes(role)) {
-      return res.status(400).json({
-    message: "Invalid role",
-     });
-    }
-    // Check if email already exists
-    const [existingUsers] = await db.query(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
-
-    if (existingUsers.length > 0) {
-      return res.status(400).json({
-        message: "Email already exists",
-      });
-    }
-
-    // Hash password before saving
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Insert user as already verified because super_admin created them directly
-    await db.query(
-      `INSERT INTO users (name, email, password, role, university_id, is_verified)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, email, hashedPassword, role, university_id || null, true]
-    );
-
-    return res.status(201).json({
-      message: "User registered successfully",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
+// Basic email format validation
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 };
 
-/*
-==================================
-LOGIN USER
-==================================
-Users log in using email + password
-Only verified accounts can log in
-*/
-const loginUser = async (req, res) => {
-  // Get login data from request body
-  const { email, password } = req.body;
-
-  try {
-    // Check that email and password are provided
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required",
-      });
-    }
-
-    // Find user by email
-    const [results] = await db.query(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
-
-    // No user found
-    if (results.length === 0) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
-
-    const user = results[0];
-
-    // Prevent login before account activation
-    if (!user.is_verified) {
-      return res.status(403).json({
-        message: "Please verify your account first.",
-      });
-    }
-
-    // Compare entered password with hashed password in database
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      return res.status(401).json({
-        message: "Invalid credentials",
-      });
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-        university_id: user.university_id,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "8h" }
-    );
-
-    return res.status(200).json({
-      message: "Login successful",
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        university_id: user.university_id,
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
-};
-
-/*
-==================================
-ACTIVATE ACCOUNT
-==================================
-Used when admin/staff clicks email link and sets password
-*/
-const activateAccount = async (req, res) => {
-  // Get token and new password from request body
-  const { token, password } = req.body;
-
-  // Check that both token and password exist
-  if (!token || !password) {
-    return res.status(400).json({
-      message: "Token and password are required",
-    });
-  }
-
-  // Strong password validation
+// Strong password validation
+const isStrongPassword = (password) => {
   const passwordRegex =
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.#^()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
 
-  if (!passwordRegex.test(password)) {
-    return res.status(400).json({
-      message:
-        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
-    });
-  }
+  return passwordRegex.test(password);
+};
 
-  // Prevent weak/common passwords
+// Common password blacklist
+const isCommonPassword = (password) => {
   const commonPasswords = [
     "123456",
     "password",
@@ -183,73 +39,267 @@ const activateAccount = async (req, res) => {
     "Admin123!",
   ];
 
-  if (commonPasswords.includes(password)) {
-    return res.status(400).json({
-      message: "This password is too common. Please choose a stronger password.",
-    });
-  }
-
-  try {
-    // Find user by verification token
-    const [results] = await db.query(
-      "SELECT * FROM users WHERE verification_token = ?",
-      [token]
-    );
-
-    // Invalid token
-    if (results.length === 0) {
-      return res.status(400).json({
-        message: "Invalid verification token",
-      });
-    }
-
-    const user = results[0];
-
-    // If already verified
-    if (user.is_verified) {
-      return res.status(400).json({
-        message: "Account already verified",
-      });
-    }
-
-    // Check token expiry
-    const now = new Date();
-    const expiresAt = new Date(user.verification_expires);
-
-    if (now > expiresAt) {
-      return res.status(400).json({
-        message: "Verification token expired",
-      });
-    }
-
-    // Hash the password before saving
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Update user:
-    // - save password
-    // - mark as verified
-    // - remove token
-    // - remove expiry
-    await db.query(
-      `UPDATE users
-       SET password = ?, is_verified = ?, verification_token = NULL, verification_expires = NULL
-       WHERE id = ?`,
-      [hashedPassword, true, user.id]
-    );
-
-    return res.status(200).json({
-      message: "Account verified successfully. You can now log in.",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
+  return commonPasswords.includes(password);
 };
 
-// Export controller functions
+/*
+==================================
+REGISTER USER
+==================================
+Only super_admin should be able to access this route
+through middleware.
+*/
+const registerUser = asyncHandler(async (req, res) => {
+  const { name, email, password, role, university_id } = req.body;
+
+  if (!name || !email || !password || !role) {
+    throw new AppError("All fields are required", 400);
+  }
+
+  if (!isValidEmail(email)) {
+    throw new AppError("Invalid email format", 400);
+  }
+
+  const allowedRoles = ["super_admin", "admin", "staff"];
+
+  if (!allowedRoles.includes(role)) {
+    throw new AppError("Invalid role", 400);
+  }
+
+  if (!isStrongPassword(password)) {
+    throw new AppError(
+      "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+      400
+    );
+  }
+
+  if (isCommonPassword(password)) {
+    throw new AppError(
+      "This password is too common. Please choose a stronger password.",
+      400
+    );
+  }
+
+  const [existingUsers] = await db.query(
+    "SELECT id FROM users WHERE email = ?",
+    [email]
+  );
+
+  if (existingUsers.length > 0) {
+    throw new AppError("Email already exists", 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await db.query(
+    `INSERT INTO users (name, email, password, role, university_id, is_verified)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [name, email, hashedPassword, role, university_id || null, true]
+  );
+
+  return res.status(201).json({
+    status: "success",
+    message: "User registered successfully",
+  });
+});
+
+/*
+==================================
+LOGIN USER
+==================================
+Users log in using email and password
+Only verified accounts can log in
+*/
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new AppError("Email and password are required", 400);
+  }
+
+  if (!isValidEmail(email)) {
+    throw new AppError("Invalid email format", 400);
+  }
+
+  const [results] = await db.query(
+    "SELECT * FROM users WHERE email = ?",
+    [email]
+  );
+
+  if (results.length === 0) {
+    throw new AppError("User not found", 404);
+  }
+
+  const user = results[0];
+
+  if (!user.is_verified) {
+    throw new AppError("Please verify your account first.", 403);
+  }
+
+  // Extra protection in case password is null
+  if (!user.password) {
+    throw new AppError("Account is not ready for login yet.", 403);
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (!isMatch) {
+    throw new AppError("Invalid credentials", 401);
+  }
+
+  const token = jwt.sign(
+    {
+      id: user.id,
+      role: user.role,
+      university_id: user.university_id,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "8h" }
+  );
+
+  return res.status(200).json({
+    status: "success",
+    message: "Login successful",
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      university_id: user.university_id,
+    },
+  });
+});
+
+/*
+==================================
+ACTIVATE ACCOUNT
+==================================
+Used when admin/staff clicks email link
+and sets password for the first time
+*/
+const activateAccount = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    throw new AppError("Token and password are required", 400);
+  }
+
+  if (!isStrongPassword(password)) {
+    throw new AppError(
+      "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+      400
+    );
+  }
+
+  if (isCommonPassword(password)) {
+    throw new AppError(
+      "This password is too common. Please choose a stronger password.",
+      400
+    );
+  }
+
+  const [results] = await db.query(
+    "SELECT * FROM users WHERE verification_token = ?",
+    [token]
+  );
+
+  if (results.length === 0) {
+    throw new AppError("Invalid verification token", 400);
+  }
+
+  const user = results[0];
+
+  if (user.is_verified) {
+    throw new AppError("Account already verified", 400);
+  }
+
+  const now = new Date();
+  const expiresAt = new Date(user.verification_expires);
+
+  if (now > expiresAt) {
+    throw new AppError("Verification token expired", 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await db.query(
+    `UPDATE users
+     SET password = ?, is_verified = ?, verification_token = NULL, verification_expires = NULL
+     WHERE id = ?`,
+    [hashedPassword, true, user.id]
+  );
+
+  return res.status(200).json({
+    status: "success",
+    message: "Account verified successfully. You can now log in.",
+  });
+});
+
+/*
+==================================
+RESEND ACTIVATION EMAIL
+==================================
+Used when invited user did not activate account in time
+*/
+const resendActivationEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new AppError("Email is required", 400);
+  }
+
+  if (!isValidEmail(email)) {
+    throw new AppError("Invalid email format", 400);
+  }
+
+  const [results] = await db.query(
+    "SELECT * FROM users WHERE email = ?",
+    [email]
+  );
+
+  if (results.length === 0) {
+    throw new AppError("User not found", 404);
+  }
+
+  const user = results[0];
+
+  if (user.is_verified) {
+    throw new AppError("Account is already verified", 400);
+  }
+
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await db.query(
+    `UPDATE users
+     SET verification_token = ?, verification_expires = ?
+     WHERE id = ?`,
+    [verificationToken, verificationExpires, user.id]
+  );
+
+  const verifyLink = `${process.env.FRONTEND_URL}/activate-account?token=${verificationToken}`;
+
+  await sendEmail({
+    to: user.email,
+    subject: "Activate your CertifyLB account",
+    html: `
+      <h2>Activate your account</h2>
+      <p>Click the link below to verify your email and set your password:</p>
+      <a href="${verifyLink}">${verifyLink}</a>
+      <p>This link will expire in 24 hours.</p>
+    `,
+  });
+
+  return res.status(200).json({
+    status: "success",
+    message: "Activation email resent successfully",
+  });
+});
+
 module.exports = {
-  loginUser,
   registerUser,
+  loginUser,
   activateAccount,
+  resendActivationEmail,
 };

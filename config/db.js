@@ -1,7 +1,6 @@
 // config/db.js
 
-// Import mysql2 in promise mode
-// This allows us to use async/await
+// Import mysql2 in promise mode so we can use async/await
 const mysql = require("mysql2/promise");
 
 // Create MySQL connection pool
@@ -15,7 +14,7 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-// Test database connection
+// Optional test connection function
 const testConnection = async () => {
   try {
     const connection = await pool.getConnection();
@@ -26,7 +25,8 @@ const testConnection = async () => {
   }
 };
 
+// Run test when server starts
 testConnection();
 
-// Export the pool directly
+// Export pool
 module.exports = pool;
