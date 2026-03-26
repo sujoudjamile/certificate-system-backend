@@ -296,10 +296,216 @@ const resendActivationEmail = asyncHandler(async (req, res) => {
     message: "Activation email resent successfully",
   });
 });
+/*
+==================================
+GET USERS BY ROLE + STATUS
+==================================
+This endpoint allows:
+- super_admin to view admins
+- admin to view staff
+
+Query params:
+- role=admin or staff
+- status=active or inactive
+
+Rules:
+- super_admin can only manage admins
+- admin can only manage staff
+*/
+const getManagedUsers = asyncHandler(async (req, res) => {
+  const { role, status } = req.query;
+
+  // Logged-in user info from JWT
+  const currentUser = req.user;
+
+  // Validate role query
+  if (!role || !["admin", "staff"].includes(role)) {
+    throw new AppError("Role must be 'admin' or 'staff'", 400);
+  }
+
+  // Validate status query
+  if (!status || !["active", "inactive"].includes(status)) {
+    throw new AppError("Status must be 'active' or 'inactive'", 400);
+  }
+
+  // Security rules:
+  // super_admin can only view admins
+  if (currentUser.role === "super_admin" && role !== "admin") {
+    throw new AppError("Super admin can only manage admin accounts", 403);
+  }
+
+  // admin can only view staff
+  if (currentUser.role === "admin" && role !== "staff") {
+    throw new AppError("Admin can only manage staff accounts", 403);
+  }
+
+  // staff cannot access this route
+  if (!["super_admin", "admin"].includes(currentUser.role)) {
+    throw new AppError("Access forbidden", 403);
+  }
+
+  // Convert status into is_verified
+  const isVerified = status === "active" ? 1 : 0;
+
+  let query = "";
+  let params = [];
+
+  // Super admin views all admins
+  if (currentUser.role === "super_admin") {
+    query = `
+      SELECT id, name, email, role, university_id, created_by, is_verified, is_active, is_flagged, created_at
+      FROM users
+      WHERE role = ? AND is_verified = ?
+      ORDER BY created_at DESC
+    `;
+    params = [role, isVerified];
+  }
+
+  // Admin views only staff from their own university
+  if (currentUser.role === "admin") {
+    query = `
+      SELECT id, name, email, role, university_id, created_by, is_verified, is_active, is_flagged, created_at
+      FROM users
+      WHERE role = ? AND is_verified = ? AND university_id = ?
+      ORDER BY created_at DESC
+    `;
+    params = [role, isVerified, currentUser.university_id];
+  }
+
+  const [users] = await db.query(query, params);
+
+  return res.status(200).json({
+    status: "success",
+    count: users.length,
+    users,
+  });
+});
+
+/*
+==================================
+RESEND ACTIVATION BY USER ID
+==================================
+This endpoint allows:
+- super_admin to resend activation for admins
+- admin to resend activation for staff
+
+Flow:
+1. Find user by ID
+2. Check permissions
+3. Check user is not already verified
+4. Generate new token
+5. Save new token + expiry
+6. Send new email
+*/
+const resendActivationById = asyncHandler(async (req, res) => {
+  const userId = req.params.id;
+  const currentUser = req.user;
+
+  // Find target user
+  const [users] = await db.query(
+    `
+    SELECT id, name, email, role, university_id, is_verified
+    FROM users
+    WHERE id = ?
+    `,
+    [userId]
+  );
+
+  if (users.length === 0) {
+    throw new AppError("User not found", 404);
+  }
+
+  const targetUser = users[0];
+
+  // User already activated
+  if (targetUser.is_verified) {
+    throw new AppError("This account is already activated", 400);
+  }
+
+  // Authorization rules
+  // super_admin can only resend for admins
+  if (currentUser.role === "super_admin") {
+    if (targetUser.role !== "admin") {
+      throw new AppError("Super admin can only resend activation for admins", 403);
+    }
+  }
+  // admin can only resend for staff from same university
+  else if (currentUser.role === "admin") {
+    if (targetUser.role !== "staff") {
+      throw new AppError("Admin can only resend activation for staff", 403);
+    }
+
+    if (targetUser.university_id !== currentUser.university_id) {
+      throw new AppError("You can only manage staff from your own university", 403);
+    }
+  } else {
+    throw new AppError("Access forbidden", 403);
+  }
+
+  // Generate new token
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  // Update DB with new token and new expiry
+  await db.query(
+    `
+    UPDATE users
+    SET verification_token = ?, verification_expires = ?
+    WHERE id = ?
+    `,
+    [verificationToken, verificationExpires, targetUser.id]
+  );
+
+  // Build activation link
+  const verifyLink = `${process.env.FRONTEND_URL}/activate-account?token=${verificationToken}`;
+
+  // Build email message depending on who is sending
+  let createdByText = "";
+  let universityText = "";
+
+  if (currentUser.role === "super_admin") {
+    createdByText = `<p>Your account activation link was resent by the <strong>Super Admin</strong>.</p>`;
+  }
+
+  if (currentUser.role === "admin") {
+    // Get university name for better email content
+    const [universityRows] = await db.query(
+      "SELECT name FROM universities WHERE id = ?",
+      [currentUser.university_id]
+    );
+
+    const universityName =
+      universityRows.length > 0 ? universityRows[0].name : "Your University";
+
+    createdByText = `<p>Your account activation link was resent by <strong>${currentUser.name}</strong>.</p>`;
+    universityText = `<p><strong>University:</strong> ${universityName}</p>`;
+  }
+
+  // Send email
+  await sendEmail({
+    to: targetUser.email,
+    subject: "Activate your CertifyLB account",
+    html: `
+      <h2>Welcome to CertifyLB</h2>
+      ${createdByText}
+      ${universityText}
+      <p>Click the link below to verify your email and set your password:</p>
+      <a href="${verifyLink}">${verifyLink}</a>
+      <p>This link will expire in 24 hours.</p>
+    `,
+  });
+
+  return res.status(200).json({
+    status: "success",
+    message: "A new activation email has been sent successfully",
+  });
+});
 
 module.exports = {
   registerUser,
   loginUser,
   activateAccount,
   resendActivationEmail,
+  getManagedUsers,
+  resendActivationById,
 };
