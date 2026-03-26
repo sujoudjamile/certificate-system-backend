@@ -38,6 +38,7 @@ const addStaff = asyncHandler(async (req, res) => {
   }
 
   const universityId = req.user.university_id;
+  const adminId = req.user.id;
 
   if (!universityId) {
     throw new AppError("Admin is not linked to any university", 400);
@@ -52,19 +53,44 @@ const addStaff = asyncHandler(async (req, res) => {
     throw new AppError("A user with this email already exists", 400);
   }
 
+  // Get admin info
+  const [adminRows] = await db.query(
+    "SELECT id, name, email, university_id FROM users WHERE id = ?",
+    [adminId]
+  );
+
+  if (adminRows.length === 0) {
+    throw new AppError("Admin not found", 404);
+  }
+
+  const admin = adminRows[0];
+
+  // Get university info
+  const [universityRows] = await db.query(
+    "SELECT id, name FROM universities WHERE id = ?",
+    [universityId]
+  );
+
+  if (universityRows.length === 0) {
+    throw new AppError("University not found", 404);
+  }
+
+  const university = universityRows[0];
+
   const verificationToken = crypto.randomBytes(32).toString("hex");
   const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const [result] = await db.query(
     `INSERT INTO users
-     (name, email, password, role, university_id, is_verified, verification_token, verification_expires)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     (name, email, password, role, university_id, created_by, is_verified, verification_token, verification_expires)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       name,
       email,
       null,
       "staff",
       universityId,
+      adminId,
       false,
       verificationToken,
       verificationExpires,
@@ -79,7 +105,9 @@ const addStaff = asyncHandler(async (req, res) => {
       subject: "Activate your CertifyLB staff account",
       html: `
         <h2>Welcome to CertifyLB</h2>
-        <p>You were added as a staff member.</p>
+        <p>You were added as a <strong>staff member</strong>.</p>
+        <p><strong>Created by:</strong> ${admin.name}</p>
+        <p><strong>University:</strong> ${university.name}</p>
         <p>Click the link below to verify your email and set your password:</p>
         <a href="${verifyLink}">${verifyLink}</a>
         <p>This link will expire in 24 hours.</p>

@@ -105,16 +105,17 @@ const createUniversity = asyncHandler(async (req, res) => {
 
     try {
       await sendEmail({
-        to: adminEmail,
-        subject: "Activate your CertifyLB university admin account",
-        html: `
-          <h2>Welcome to CertifyLB</h2>
-          <p>Your university admin account has been created.</p>
-          <p>Click the link below to verify your email and set your password:</p>
-          <a href="${verifyLink}">${verifyLink}</a>
-          <p>This link will expire in 24 hours.</p>
-        `,
-      });
+  to: adminEmail,
+  subject: "Activate your CertifyLB university admin account",
+  html: `
+    <h2>Welcome to CertifyLB</h2>
+    <p>Your university admin account has been created by the <strong>Super Admin</strong>.</p>
+    <p><strong>University:</strong> ${universityName}</p>
+    <p>Click the link below to verify your email and set your password:</p>
+    <a href="${verifyLink}">${verifyLink}</a>
+    <p>This link will expire in 24 hours.</p>
+  `,
+});
 
       return res.status(201).json({
         status: "success",
