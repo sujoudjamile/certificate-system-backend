@@ -1,0 +1,246 @@
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.navbar  {
+
+  position: sticky;
+  top: 0;
+
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 30px;
+
+  background: rgba(15, 23, 42, 0.6);
+
+  backdrop-filter: blur(10px);
+
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+
+  z-index: 1000;
+ 
+}
+
+
+.nav-left {
+
+  display: flex;
+  align-items: center;
+  gap: 15px;
+
+}
+
+
+.back-icon {
+
+  color: #94a3b8;
+  cursor: pointer;
+  transition: 0.2s;
+
+}
+
+.back-icon:hover {
+
+  color: white;
+
+}
+
+
+.logo-box {
+
+  background: #ff1e1e;
+
+  padding: 10px;
+
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: white;
+
+}
+
+
+.logo-text {
+
+  font-size: 20px;
+  font-weight: 600;
+
+  color: white;
+
+}
+.login-container {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: -50px;
+
+  
+}
+
+.login-card {
+  width: 500px;
+  padding: 40px;
+  border-radius: 16px;
+
+  
+  backdrop-filter: blur(10px);
+
+  
+}
+
+.Ltitle {
+  text-align: center;
+  font-size: xxx-large;
+  color: white;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #9aa4c7;
+  margin-bottom: 30px;
+}
+
+/* Role selector */
+
+.role-selector {
+  display: flex;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 5px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.1);;
+}
+
+.role-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: #9aa4c7;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.role-btn.active {
+  background: #ff1e1e;
+  color: white;
+}
+
+/* Role info */
+
+.role-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+
+  padding: 15px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.1);;
+}
+
+.role-icon {
+  font-size: 24px;
+}
+
+.role-title {
+  color: white;
+  font-weight: bold;
+}
+
+.role-desc {
+  color: #9aa4c7;
+  font-size: 14px;
+  
+}
+
+/* Inputs */
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  margin-top: 10px;
+  color: #c3cbe8;
+}
+
+.input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+
+  background: rgba(255,255,255,0.05);
+  color: white;
+
+  margin-bottom: 10px;
+  border: 1px solid rgba(255,255,255,0.1);;
+}
+
+.password-container {
+  position: relative;
+  
+}
+
+.eye {
+  position: absolute;
+  right: 15px;
+  top: 13px;
+  color: #aaa;
+  cursor: pointer;
+}
+
+/* Button */
+
+.role-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: #9aa4c7;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.3s;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.role-main-icon {
+  color: #ff3b3b;
+}
+
+.login-btn {
+  width: 100%;
+  margin-top: 20px;
+
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+
+  background: #ff1e1e;
+  color: white;
+  font-size: 16px;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}

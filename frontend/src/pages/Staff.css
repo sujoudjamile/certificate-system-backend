@@ -1,0 +1,268 @@
+/* ===== GLOBAL ===== */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #1a2a4f, #1e2f5a);
+  font-family: "Inter", Arial, sans-serif;
+  color: white;
+}
+
+/* ===== HEADER ===== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 50px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+}
+
+/* Logout Button */
+.logout {
+  background: transparent;
+  border: 1px solid #ff3b30;
+  padding: 9px 16px;
+  border-radius: 12px;
+  color: #ff3b30;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.logout:hover {
+  background: #ff3b30;
+  color: white;
+  box-shadow: 0 0 12px rgba(255,59,48,0.5);
+}
+
+/* ===== TABS ===== */
+.tabs {
+  display: flex;
+  gap: 12px;
+  padding: 25px 50px 0;
+}
+
+.tabs button {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+
+.tabs button.active,
+.tabs button:hover {
+  background: linear-gradient(135deg, #ff3b30, #ff6a3d);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 14px rgba(255,59,48,0.4);
+}
+
+/* ===== TOPBAR ===== */
+.topbar {
+  display: flex;
+  gap: 12px;
+  padding: 25px 50px;
+}
+
+.topbar input {
+  flex: 1;
+  padding: 13px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: white;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s;
+}
+
+.topbar input:focus {
+  border-color: #ff3b30;
+  box-shadow: 0 0 0 2px rgba(255,59,48,0.2);
+}
+
+/* Primary Button */
+.topbar .green {
+  background: linear-gradient(135deg, #ff3b30, #ff6a3d);
+  color: white;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.25s;
+}
+
+.topbar .green:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255,59,48,0.4);
+}
+
+/* ===== CONTENT BOX ===== */
+.box {
+  padding: 30px;
+  margin: 20px 50px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: rgba(255,255,255,0.05);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+  transition: all 0.25s ease;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.card h4 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.card p {
+  margin: 2px 0;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+}
+
+/* CERT CARD */
+.card.cert {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* View Button */
+.card .view {
+  background: linear-gradient(135deg, #ff3b30, #ff6a3d);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.card .view:hover {
+  box-shadow: 0 4px 14px rgba(255,59,48,0.5);
+}
+
+/* ===== EMPTY ===== */
+.empty {
+  text-align: center;
+  padding: 25px;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ===== MODAL ===== */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: rgba(10, 15, 30, 0.6);
+  backdrop-filter: blur(6px);
+
+  z-index: 9999;
+}
+
+.modal-box {
+  background: #1c2b45;
+  border-radius: 20px;
+  
+  width: 700px;
+  max-width: 100%;
+
+  border: 1px solid rgba(255,255,255,0.1);
+
+  /* 👇 THIS helps perfect centering */
+  margin: auto;
+}
+
+.modal-box {
+  animation: scaleIn 0.25s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+
+.modal-box h2 {
+  margin-bottom: 20px;
+}
+
+/* Inputs */
+.modal-box input {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: white;
+  font-size: 14px;
+}
+
+/* Buttons */
+.modal-box button {
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.modal-box button:first-of-type {
+  background: linear-gradient(135deg, #ff3b30, #ff6a3d);
+  color: white;
+}
+
+.modal-box button:last-of-type {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  margin-left: 10px;
+}
