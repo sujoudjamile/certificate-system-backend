@@ -1,0 +1,340 @@
+/* ===== 01: GLOBAL STYLES ===== */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(to bottom, #121F42, #122045);
+  font-family: Arial, sans-serif;
+  color: rgb(255, 254, 254);
+}
+
+/* ===== 02: PAGE CONTAINER ===== */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ===== 03: NAVBAR ===== */
+nav {
+  position: sticky;
+  top: 0;
+  margin-bottom: 4rem;
+  height: 40px;
+  background: rgba(24, 23, 23, 0.36);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: #333;
+  color: white;
+  padding: 1rem 4rem;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  border-bottom:  1px solid rgba(255,255,255,0.1);
+  
+}
+
+
+.logo{
+
+  background: #ff1e1e;
+
+  padding: 10px;
+
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: white;
+  order: -2;
+
+}
+.header-text {
+  display: flex;
+  flex-direction: column;
+  order: -1;
+}
+
+.navbar h2 { margin: 0; }
+.navbar h5 { margin: 2px; padding: 2px; font-weight: normal; }
+
+
+/* ===== 04: LOGIN BUTTON ===== */
+.login {
+  background-color: #e10600;
+  color: white;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 40px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.login:hover {
+  background-color: #c40000;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+/* ===== 05: HERO SECTION ===== */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+  padding: 10px;
+}
+
+.security-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 10px 0;
+  padding: 10px 28px;
+  color: #ffb3b3;
+  background: rgba(255,0,0,0.08);
+  border: 1px solid rgba(255,0,0,0.4);
+  border-radius: 40px;
+  font-size: 15px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.title {
+  margin: 15px 0 5px 0;
+  font-size: 75px;
+  text-align: center;
+  font-weight: 900;
+}
+
+/* ===== 06: CERTIFICATE FORM ===== */
+.cert_id {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 35px;
+  margin-top: 30px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 550px;
+  
+}
+
+.cert_id input {
+  width: 100%;
+  padding: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  color: white;
+  font-size: 16px;
+  margin: 15px 0 20px 0;
+  outline: none;
+}
+
+.cert_id input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.cert_id button {
+  width: 106%;
+  padding: 14px;
+  background: #e10600;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.cert_id button:hover {
+  background: #c40000;
+  transform: translateY(-2px);
+}
+ 
+.cert-header {
+  display: flex;
+  align-items: center;  /* vertically center the icon with text */
+  gap: 10px;            /* space between icon and h2 */
+  margin-bottom: 20px;  /* space below header */
+}
+.cert-header h2 {
+  margin: 0;
+  font-size: 24px; /* adjust size as needed */
+  font-weight: 700;
+}
+
+.qr {
+  font-size: 30px; /* icon size */
+  color: #ff4d4d;
+}
+
+/* ===== 07: ABOUT / FEATURE CARDS ===== */
+.About {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 30px;
+  margin-top: 50px;
+  flex-wrap: wrap;
+  padding: 20px;
+}
+
+.About > div {
+  background: rgba(255,255,255,0.05);
+  border-radius: 15px;
+  padding: 30px 25px;
+  width: 300px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+}
+
+.About > div:hover {
+  transform: translateY(-8px);
+  border: 1px solid rgba(255,77,77,0.5);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.Ficon { font-size: 40px; margin-bottom: 15px; color: #ff4d4d; }
+.Ftitle { font-size: 20px; font-weight: 600; margin-bottom: 10px; color: white; }
+.Fdescrip { font-size: 15px; color: rgba(255,255,255,0.6); line-height: 1.5; }
+
+.qr, .lock, .icon3 { color: #ff4d4d; }
+
+/* ===== 08: UNIVERSITIES SECTION ===== */
+.universities-section { padding: 30px 0; text-align: center; }
+
+.universities-title { color: white; font-size: 32px; font-weight: 600; margin-bottom: 10px; }
+.universities-subtitle { color: rgba(255,255,255,0.6); font-size: 16px; margin-bottom: 40px; }
+
+.universities-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 1200px;
+  margin: auto;
+  
+}
+
+.university-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.9);
+  font-size: 15px;
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: all 0.3s ease;
+  background-color: #0a142f;
+}
+
+.university-card:hover {
+  background: rgba(255,255,255,0.08);
+  transform: translateY(-3px);
+  border: 1px solid rgba(255,77,77,0.4);
+}
+
+.uni-icon { color: #ff4d4d; font-size: 18px; }
+
+/* ===== 09: HOW IT WORKS SECTION ===== */
+.how-section {
+  padding: 80px 20px;
+  text-align: center;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+.how-title { color: white; font-size: 32px; font-weight: 600; margin-bottom: 60px; }
+
+.how-container {
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+  flex-wrap: wrap;
+}
+
+.how-card { max-width: 250px; text-align: center; }
+
+.how-number {
+  width: 60px; height: 60px;
+  margin: auto; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: bold;
+  color: #ff6b6b;
+  background: rgba(255,77,77,0.08);
+  border: 1px solid rgba(255,77,77,0.4);
+  border-radius: 20px;
+  transition: 0.3s;
+}
+
+.how-number:hover { transform: scale(1.1); }
+.how-card-title { color: white; font-size: 20px; margin-bottom: 10px; }
+.how-card-description { color: rgba(255,255,255,0.6); font-size: 15px; line-height: 1.6; }
+
+/* ===== 10: FOOTER ===== */
+.footer {
+  background: linear-gradient(180deg, #0f1b3d, #0a142f);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding: 30px 20px;
+}
+
+.footer-content { text-align: center; }
+
+.footer-logo {
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  gap: 10px;
+  color: white; 
+  font-size: 18px; 
+  font-weight: 600; 
+  margin-bottom: 10px;
+}
+
+.footer-icon { 
+  color: #ff4d4d; 
+  font-size: 18px; }
+.footer-text { 
+  color: rgba(255,255,255,0.5); 
+  font-size: 14px; }
+
+/* ===== 11: RESPONSIVE MEDIA QUERIES ===== */
+@media (max-width: 900px) {
+  .About { flex-direction: column; align-items: center; }
+  .About > div { width: 90%; max-width: 350px; }
+  .universities-grid { grid-template-columns: repeat(2,1fr); }
+  .how-container { gap: 40px; }
+}
+
+@media (max-width: 600px) {
+  .universities-grid { grid-template-columns: repeat(1,1fr); }
+  .how-container { flex-direction: column; align-items: center; }
+  .cert_id { width: 90%; padding: 20px; }
+  .title { font-size: 40px; }
+  .hero { padding: 20px; }
+   
+  .login { font-size: 15px; padding: 10px 20px; }
+}
