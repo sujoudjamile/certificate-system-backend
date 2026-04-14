@@ -185,7 +185,6 @@ const createUniversity = asyncHandler(async (req, res) => {
         activationKey,
         keyReference,
       });
-
     } catch (emailError) {
       return res.status(201).json({
         status: "warning",
@@ -198,7 +197,6 @@ const createUniversity = asyncHandler(async (req, res) => {
         emailError: emailError.message,
       });
     }
-
   } catch (error) {
     await connection.rollback();
     throw error;
