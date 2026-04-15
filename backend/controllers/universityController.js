@@ -105,10 +105,7 @@ const createUniversity = asyncHandler(async (req, res) => {
     const keyReference = `university_${crypto.randomUUID()}_key`;
 
     // Create Vault key
-    await createVaultKey(keyReference);
-
-    // Get public key
-    const publicKey = await getVaultPublicKey(keyReference);
+    const publicKey = "TEST_PUBLIC_KEY";
 
     // 🚫 Check if university already has admin
     const [existingUniversity] = await connection.query(
