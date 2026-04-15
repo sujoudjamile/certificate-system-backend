@@ -95,7 +95,7 @@ export default function Staff() {
         }
       );
 
-      setStudents(res.data.students);
+      setStudents(res.data);
 
     } catch (err) {
       console.error("Fetch error:", err);
@@ -164,12 +164,12 @@ export default function Staff() {
       {/* CONTENT */}
       {tab === "students" ? (
         <div className="box">
-          <h3>Registered Students ({students.length})</h3>
+          <h3>Registered Students ({students?.length || 0})</h3>
 
           {students.length === 0 ? (
             <p className="empty">No students found. Add your first student to get started.</p>
           ) : (
-            students.map((s, i) => (
+            students?.map((s, i) => (
               <div key={i} className="card">
                 <h4>{s.full_name}</h4>
                 <p>National ID: {s.national_id}</p>

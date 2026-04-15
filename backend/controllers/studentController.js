@@ -1,156 +1,138 @@
 const db = require("../config/db");
 
-// Add student
+// ==========================
+// ADD STUDENT
+// ==========================
 const addStudent = async (req, res) => {
-  console.log("ADD STUDENT HIT");
-
   try {
-    let {
+    const {
       full_name,
-      student_id, // now becomes permanent student_code
+      student_id,
       email,
       phone,
       national_id,
       date_of_birth,
-      degree
+      degree,
+      major
     } = req.body;
 
-    const universityId = req.user.university_id;
-    const createdBy = req.user.id;
+    const university_id = req.user.university_id;
+    const created_by = req.user.id;
 
-    // 🧹 Clean input
-    full_name = full_name?.trim();
-    student_id = student_id?.trim();
-    email = email?.toLowerCase().trim();
-    phone = phone?.trim();
-    national_id = national_id?.trim();
-
-    // 🚨 Required
-    if (!full_name || !student_id || !email || !phone || !national_id || !date_of_birth || !degree) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    // 🔐 VALIDATIONS
-    if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)+$/.test(full_name)) {
-      return res.status(400).json({ message: "Full name must be like: John Doe" });
-    }
-
-    if (!/^[0-9]{4,20}$/.test(student_id)) {
-      return res.status(400).json({ message: "Invalid student ID" });
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ message: "Invalid email" });
-    }
-
-    if (!/^[0-9]{7,15}$/.test(phone)) {
-      return res.status(400).json({ message: "Invalid phone" });
-    }
-
-    if (!/^[0-9]{6,20}$/.test(national_id)) {
-      return res.status(400).json({ message: "Invalid national ID" });
-    }
-
-    // 🔐 AGE CHECK
-    const dob = new Date(date_of_birth);
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    if (age < 17 || age > 100) {
-      return res.status(400).json({ message: "Invalid age" });
-    }
-
-    // 🔍 STEP 1: Check if student exists
+    // ================================
+    // STEP 1: CHECK OR CREATE STUDENT
+    // ================================
     const [existingStudent] = await db.query(
       "SELECT * FROM students_new WHERE national_id = ?",
       [national_id]
     );
 
     let studentId;
-    let studentCode;
 
     if (existingStudent.length > 0) {
       studentId = existingStudent[0].id;
-      studentCode = existingStudent[0].student_code;
-
-      // 🚫 Prevent changing student ID
-      if (studentCode !== student_id) {
-        return res.status(400).json({
-          message: "Student ID cannot be changed for existing student"
-        });
-      }
-
     } else {
-      // ✅ Create new identity
       const [newStudent] = await db.query(
-        `INSERT INTO students_new (full_name, national_id, date_of_birth, student_code)
-         VALUES (?, ?, ?, ?)`,
-        [full_name, national_id, date_of_birth, student_id]
+        `INSERT INTO students_new 
+        (full_name, national_id, date_of_birth)
+        VALUES (?, ?, ?)`,
+        [full_name, national_id, date_of_birth]
       );
 
       studentId = newStudent.insertId;
-      studentCode = student_id;
     }
 
-    // 🎓 STEP 2: Degree progression check
-    const [existingDegrees] = await db.query(
-      `SELECT degree FROM student_records WHERE student_id = ?`,
+    // =====================================
+    // STEP 2: GET ALL RECORDS
+    // =====================================
+    const [records] = await db.query(
+      "SELECT * FROM student_records WHERE student_id = ?",
       [studentId]
     );
 
-    const degrees = existingDegrees.map(d => d.degree);
+    // =====================================
+    // STEP 3: DEGREE PROGRESSION
+    // =====================================
+    const degreeOrder = ["Bachelor", "Master", "PhD"];
 
-    // 🚫 Master without Bachelor
-    if (degree === "Master" && !degrees.includes("Bachelor")) {
-      return res.status(400).json({
-        message: "Student must complete Bachelor before Master"
-      });
+    const highestDegree = records
+      .map(r => r.degree)
+      .sort(
+        (a, b) =>
+          degreeOrder.indexOf(b) - degreeOrder.indexOf(a)
+      )[0];
+
+    if (highestDegree) {
+      const currentIndex = degreeOrder.indexOf(highestDegree);
+      const newIndex = degreeOrder.indexOf(degree);
+
+      if (newIndex < currentIndex) {
+        return res.status(400).json({
+          message: `Cannot downgrade from ${highestDegree} to ${degree}`
+        });
+      }
+
+      if (newIndex === currentIndex) {
+        return res.status(400).json({
+          message: `Student already has a ${degree} degree`
+        });
+      }
     }
 
-    // 🚫 PhD without Master
-    if (degree === "PhD" && !degrees.includes("Master")) {
-      return res.status(400).json({
-        message: "Student must complete Master before PhD"
-      });
+    // =====================================
+    // STEP 4: GLOBAL MAJOR VALIDATION
+    // =====================================
+    if (degree === "Master") {
+      const bachelor = records.find(r => r.degree === "Bachelor");
+
+      if (bachelor && bachelor.major !== major) {
+        return res.status(400).json({
+          message: "Master must match Bachelor major"
+        });
+      }
     }
 
-    // 🚫 Prevent duplicate SAME degree in SAME university
-    const [degreeCheck] = await db.query(
-      `SELECT id FROM student_records 
-       WHERE student_id = ? AND university_id = ? AND degree = ?`,
-      [studentId, universityId, degree]
+    if (degree === "PhD") {
+      const master = records.find(r => r.degree === "Master");
+
+      if (master && master.major !== major) {
+        return res.status(400).json({
+          message: "PhD must match Master major"
+        });
+      }
+    }
+
+    // =====================================
+    // STEP 5: PREVENT SAME DEGREE IN SAME UNI
+    // =====================================
+    const duplicate = records.find(
+      r =>
+        r.university_id === university_id &&
+        r.student_code === student_id &&
+        r.degree === degree
     );
 
-    if (degreeCheck.length > 0) {
+    if (duplicate) {
       return res.status(400).json({
-        message: "Student already has this degree in this university"
+        message: `Student already has a ${degree} degree in this university`
       });
     }
 
-    // 🚫 Prevent duplicate email in same university
-    const [emailCheck] = await db.query(
-      `SELECT id FROM student_records 
-       WHERE university_id = ? AND email = ?`,
-      [universityId, email]
-    );
-
-    if (emailCheck.length > 0) {
-      return res.status(400).json({
-        message: "Email already exists in this university"
-      });
-    }
-
-    // ✅ STEP 3: Insert academic record
+    // =====================================
+    // STEP 6: INSERT RECORD
+    // =====================================
     await db.query(
       `INSERT INTO student_records 
-      (student_id, university_id, created_by, email, phone, degree)
-      VALUES (?, ?, ?, ?, ?, ?)`,
+      (student_id, university_id, created_by, student_code, phone, degree, major)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         studentId,
-        universityId,
-        createdBy,
-        email,
+        university_id,
+        created_by,
+        student_id,
         phone,
-        degree
+        degree,
+        major
       ]
     );
 
@@ -160,33 +142,73 @@ const addStudent = async (req, res) => {
 
   } catch (error) {
     console.error("ERROR:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      message: error.message
+    });
   }
 };
 
-// Get students
+// ==========================
+// GET STUDENTS
+// ==========================
 const getStudents = async (req, res) => {
   try {
-    const universityId = req.user.university_id;
+    const university_id = req.user.university_id;
 
     const [students] = await db.query(
-      `SELECT sr.*, s.full_name, s.national_id, s.date_of_birth, s.student_code
+      `SELECT 
+          sr.id,
+          sr.student_code,
+          s.email,
+          sr.phone,
+          sr.degree,
+          sr.major,
+          sr.created_at,
+          s.full_name,
+          s.national_id,
+          s.date_of_birth
        FROM student_records sr
        JOIN students_new s ON sr.student_id = s.id
        WHERE sr.university_id = ?
        ORDER BY sr.created_at DESC`,
-      [universityId]
+      [university_id]
     );
 
-    res.json({ students });
+    res.status(200).json(students);
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ==========================
+// AUTO-FILL (NEW 🔥)
+// ==========================
+const getStudentByNationalId = async (req, res) => {
+  try {
+    const { national_id } = req.params;
+
+    const [student] = await db.query(
+      "SELECT full_name, national_id, date_of_birth FROM students_new WHERE national_id = ?",
+      [national_id]
+    );
+
+    if (student.length === 0) {
+      return res.json({ exists: false });
+    }
+
+    res.json({
+      exists: true,
+      student: student[0]
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
 module.exports = {
   addStudent,
   getStudents,
+  getStudentByNationalId   // ✅ IMPORTANT
 };
