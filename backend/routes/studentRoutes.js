@@ -1,41 +1,25 @@
 const express = require("express");
 const router = express.Router();
 
-const {
+const { 
   addStudent,
-  getStudents,
   getStudentByNationalId   // ✅ ADD THIS
 } = require("../controllers/studentController");
 
 const authenticateToken = require("../middleware/authMiddleware");
-const authorizeRoles = require("../middleware/roleMiddleware");
 
-// ==========================
-// STUDENT ROUTES
-// ==========================
+/*
+==================================
+ADD STUDENT
+==================================
+*/
+router.post("/", authenticateToken, addStudent);
 
-// Add student
-router.post(
-  "/",
-  authenticateToken,
-  authorizeRoles("admin", "staff"),
-  addStudent
-);
-
-// Get all students (per university)
-router.get(
-  "/",
-  authenticateToken,
-  authorizeRoles("admin", "staff"),
-  getStudents
-);
-
-// 🔥 AUTO-FILL ROUTE (NEW)
-router.get(
-  "/by-national-id/:national_id",
-  authenticateToken,
-  authorizeRoles("admin", "staff"),
-  getStudentByNationalId
-);
+/*
+==================================
+AUTO-FILL (GET STUDENT BY NATIONAL ID)
+==================================
+*/
+router.get("/by-national-id/:national_id", getStudentByNationalId);
 
 module.exports = router;
