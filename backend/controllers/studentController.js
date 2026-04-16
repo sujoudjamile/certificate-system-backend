@@ -1,8 +1,10 @@
 const db = require("../config/db");
 
-// ==========================
-// ADD STUDENT
-// ==========================
+/*
+==================================
+ADD STUDENT
+==================================
+*/
 const addStudent = async (req, res) => {
   try {
     const {
@@ -35,7 +37,7 @@ const addStudent = async (req, res) => {
       const [newStudent] = await db.query(
         `INSERT INTO students_new 
         (full_name, national_id, date_of_birth)
-        VALUES (?, ?, ?)`,
+        VALUES (?, ?, DATE(?))`,
         [full_name, national_id, date_of_birth]
       );
 
@@ -43,24 +45,47 @@ const addStudent = async (req, res) => {
     }
 
     // =====================================
-    // STEP 2: GET ALL RECORDS
+    // STEP 2 — GLOBAL RECORDS (ALL UNIVERSITIES)
     // =====================================
-    const [records] = await db.query(
-      "SELECT * FROM student_records WHERE student_id = ?",
+    const [allRecords] = await db.query(
+      "SELECT degree FROM student_records WHERE student_id = ?",
       [studentId]
     );
 
     // =====================================
-    // STEP 3: DEGREE PROGRESSION
+    // 🔥 GLOBAL DEGREE VALIDATION
+    // =====================================
+    const hasBachelor = allRecords.some(r => r.degree === "Bachelor");
+    const hasMaster = allRecords.some(r => r.degree === "Master");
+
+    if (degree === "Master" && !hasBachelor) {
+      return res.status(400).json({
+        message: "Student must have a Bachelor degree before Master"
+      });
+    }
+
+    if (degree === "PhD" && !hasMaster) {
+      return res.status(400).json({
+        message: "Student must have a Master degree before PhD"
+      });
+    }
+
+    // =====================================
+    // STEP 3 — PER UNIVERSITY RECORDS
+    // =====================================
+    const [records] = await db.query(
+      "SELECT * FROM student_records WHERE student_id = ? AND university_id = ?",
+      [studentId, university_id]
+    );
+
+    // =====================================
+    // STEP 4 — DEGREE PROGRESSION (PER UNI)
     // =====================================
     const degreeOrder = ["Bachelor", "Master", "PhD"];
 
     const highestDegree = records
       .map(r => r.degree)
-      .sort(
-        (a, b) =>
-          degreeOrder.indexOf(b) - degreeOrder.indexOf(a)
-      )[0];
+      .sort((a, b) => degreeOrder.indexOf(b) - degreeOrder.indexOf(a))[0];
 
     if (highestDegree) {
       const currentIndex = degreeOrder.indexOf(highestDegree);
@@ -74,17 +99,16 @@ const addStudent = async (req, res) => {
 
       if (newIndex === currentIndex) {
         return res.status(400).json({
-          message: `Student already has a ${degree} degree`
+          message: `Student already has a ${degree} degree in this university`
         });
       }
     }
 
     // =====================================
-    // STEP 4: GLOBAL MAJOR VALIDATION
+    // STEP 5 — MAJOR VALIDATION
     // =====================================
     if (degree === "Master") {
       const bachelor = records.find(r => r.degree === "Bachelor");
-
       if (bachelor && bachelor.major !== major) {
         return res.status(400).json({
           message: "Master must match Bachelor major"
@@ -94,7 +118,6 @@ const addStudent = async (req, res) => {
 
     if (degree === "PhD") {
       const master = records.find(r => r.degree === "Master");
-
       if (master && master.major !== major) {
         return res.status(400).json({
           message: "PhD must match Master major"
@@ -103,33 +126,18 @@ const addStudent = async (req, res) => {
     }
 
     // =====================================
-    // STEP 5: PREVENT SAME DEGREE IN SAME UNI
-    // =====================================
-    const duplicate = records.find(
-      r =>
-        r.university_id === university_id &&
-        r.student_code === student_id &&
-        r.degree === degree
-    );
-
-    if (duplicate) {
-      return res.status(400).json({
-        message: `Student already has a ${degree} degree in this university`
-      });
-    }
-
-    // =====================================
-    // STEP 6: INSERT RECORD
+    // STEP 6 — INSERT RECORD
     // =====================================
     await db.query(
       `INSERT INTO student_records 
-      (student_id, university_id, created_by, student_code, phone, degree, major)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      (student_id, university_id, created_by, student_code, email, phone, degree, major)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         studentId,
         university_id,
         created_by,
         student_id,
+        email,
         phone,
         degree,
         major
@@ -141,55 +149,27 @@ const addStudent = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("ERROR:", error);
-    res.status(500).json({
-      message: error.message
-    });
-  }
-};
-
-// ==========================
-// GET STUDENTS
-// ==========================
-const getStudents = async (req, res) => {
-  try {
-    const university_id = req.user.university_id;
-
-    const [students] = await db.query(
-      `SELECT 
-          sr.id,
-          sr.student_code,
-          s.email,
-          sr.phone,
-          sr.degree,
-          sr.major,
-          sr.created_at,
-          s.full_name,
-          s.national_id,
-          s.date_of_birth
-       FROM student_records sr
-       JOIN students_new s ON sr.student_id = s.id
-       WHERE sr.university_id = ?
-       ORDER BY sr.created_at DESC`,
-      [university_id]
-    );
-
-    res.status(200).json(students);
-
-  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// ==========================
-// AUTO-FILL (NEW 🔥)
-// ==========================
+/*
+==================================
+AUTO-FILL STUDENT (BY NATIONAL ID)
+==================================
+*/
 const getStudentByNationalId = async (req, res) => {
   try {
     const { national_id } = req.params;
 
     const [student] = await db.query(
-      "SELECT full_name, national_id, date_of_birth FROM students_new WHERE national_id = ?",
+      `SELECT 
+        full_name, 
+        national_id, 
+        DATE_FORMAT(date_of_birth, '%Y-%m-%d') AS date_of_birth
+       FROM students_new 
+       WHERE national_id = ?`,
       [national_id]
     );
 
@@ -207,8 +187,12 @@ const getStudentByNationalId = async (req, res) => {
   }
 };
 
+/*
+==================================
+EXPORTS
+==================================
+*/
 module.exports = {
   addStudent,
-  getStudents,
-  getStudentByNationalId   // ✅ IMPORTANT
+  getStudentByNationalId   // ✅ THIS FIXES YOUR ERROR
 };
