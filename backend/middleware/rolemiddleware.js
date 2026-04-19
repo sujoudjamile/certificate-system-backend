@@ -1,4 +1,4 @@
-// middleware/roleMiddleware.js
+//middleware/rolemiddleware.js
 
 /*
 ==================================
@@ -13,7 +13,7 @@ authorizeRoles("admin", "staff")
 const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
     // No authenticated user found
-    if (!req.user) {
+    if (!req.user) {//Check if user exists
       return res.status(401).json({
         status: "error",
         message: "Unauthorized.",
@@ -21,7 +21,7 @@ const authorizeRoles = (...allowedRoles) => {
     }
 
     // Role not allowed
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!allowedRoles.includes(req.user.role)) {//Check if role is allowed
       return res.status(403).json({
         status: "error",
         message: "Access forbidden: insufficient permissions.",

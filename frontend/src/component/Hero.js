@@ -1,9 +1,13 @@
-import React from "react"
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FaQrcode, FaLock, FaExclamationTriangle, FaGraduationCap } from "react-icons/fa";
 
-function Hero(){
+function Hero() {
+  const navigate = useNavigate();
+  const [certNumber, setCertNumber] = useState("");
+  const [error, setError] = useState("");
 
-    const features = [
+  const features = [
     {
       icon: <FaQrcode className="qr" />,
       title: "QR-Secured Certificates",
@@ -24,8 +28,7 @@ function Hero(){
     },
   ];
 
-
-    const universities = [
+  const universities = [
     "American University of Beirut (AUB)",
     "Lebanese American University (LAU)",
     "Lebanese University (LU)",
@@ -41,7 +44,7 @@ function Hero(){
     "Middle East University (MEU)",
   ];
 
-    const steps = [
+  const steps = [
     {
       number: "01",
       title: "University Registration",
@@ -64,86 +67,113 @@ function Hero(){
       number: "04",
       title: "Instant Verification",
       description:
-        "Anyone can scan the QR or enter the hash to verify authenticity in seconds.",
+        "Anyone can scan the QR or enter the certificate number to verify authenticity in seconds.",
     },
   ];
-     
 
-    return (
-        <div className="hero">
-            <div className="security-badge">
-               🔒 Blockchain-level Security for Lebanese Academic Credentials
-            </div>
-            <h2 className="title">Verify Any Lebanese <span style={{color:"#ff4d4d"}}>University<br></br></span> Certificate Instantly</h2>
-            <h3  style={{color: "rgba(255,255,255,0.5)" , fontSize:"20px"}}>Scan the QR code on any certificate issued by a registered Lebanese<br></br> university to instantly verify its authenticity.</h3>
-            <div className="cert_id">
-               <div className="cert-header">
-                    <FaQrcode className="qr" />
-                    <h2>Verify a Certificate</h2>
-               </div>
-                <input type="text" placeholder="Enter certificate verification hash..."></input>
-                <button>Verify Certificate</button>
-                <h5 style={{color: "rgba(255,255,255,0.5)" , fontSize:"13px" , fontWeight:"normal"}}>The hash is printed on the certificate or encoded in the QR code</h5>
-            </div>
+  const handleVerify = () => {
+    const trimmed = certNumber.trim();
+    if (!trimmed) {
+      setError("Please enter a certificate number.");
+      return;
+    }
+    setError("");
+    navigate(`/verify/${encodeURIComponent(trimmed)}`);
+  };
 
-            <div className="About">
-                 {features.map((feature, index) => (
-                <div key={index} className="">
-            
-                   <div className="Ficon">{feature.icon}</div>
-                   <h3 className="Ftitle">{feature.title}</h3>
-                   <p className="Fdescrip">{feature.description}</p>
-            
-                </div>
-                ) ) }
-            </div>
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleVerify();
+  };
 
-             <div className="universities-section">
+  return (
+    <div className="hero">
+      <div className="security-badge">
+        🔒 Blockchain-level Security for Lebanese Academic Credentials
+      </div>
+      <h2 className="title">
+        Verify Any Lebanese{" "}
+        <span style={{ color: "#ff4d4d" }}>
+          University
+          <br />
+        </span>{" "}
+        Certificate Instantly
+      </h2>
+      <h3 style={{ color: "rgba(255,255,255,0.5)", fontSize: "20px" }}>
+        Scan the QR code on any certificate issued by a registered Lebanese
+        <br /> university to instantly verify its authenticity.
+      </h3>
 
-                <h2 className="universities-title">
-                    Registered Lebanese Universities
-                </h2>
-
-                <p className="universities-subtitle">
-                    These institutions can register on our platform to issue verified certificates
-                </p>
-
-                <div className="universities-grid">
-                    {universities.map((uni, index) => (
-                    <div key={index} className="university-card">
-                    <FaGraduationCap className="uni-icon" />
-                    <span>{uni}</span>
-                    </div>
-                ))}
-                </div>
-             </div>
-
-            <div className="how-section">
-
-                <h2 className="how-title">How It Works</h2>
-
-                <div className="how-container">
-                    {steps.map((step, index) => (
-                    <div key={index} className="how-card">
-
-                    <div className="how-number">
-                    {step.number}
-                    </div>
-
-                <h3 className="how-card-title">
-                {step.title}
-                </h3>
-
-                <p className="how-card-description">
-                {step.description}
-                </p>
-
-                    </div>
-                ))}
-            </div>
+      <div className="cert_id">
+        <div className="cert-header">
+          <FaQrcode className="qr" />
+          <h2>Verify a Certificate</h2>
         </div>
+        <input
+          type="text"
+          placeholder="Enter certificate number (e.g. UNIV-19-2026-A3F2C1)..."
+          value={certNumber}
+          onChange={(e) => {
+            setCertNumber(e.target.value);
+            if (error) setError("");
+          }}
+          onKeyDown={handleKeyDown}
+        />
+        {error && (
+          <p style={{ color: "#ff6b6b", fontSize: "13px", margin: "-4px 0 8px", textAlign: "left" }}>
+            {error}
+          </p>
+        )}
+        <button onClick={handleVerify}>Verify Certificate</button>
+        <h5
+          style={{
+            color: "rgba(255,255,255,0.5)",
+            fontSize: "13px",
+            fontWeight: "normal",
+          }}
+        >
+          The certificate number is printed on the certificate or encoded in the QR code
+        </h5>
+      </div>
+
+      <div className="About">
+        {features.map((feature, index) => (
+          <div key={index} className="">
+            <div className="Ficon">{feature.icon}</div>
+            <h3 className="Ftitle">{feature.title}</h3>
+            <p className="Fdescrip">{feature.description}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="universities-section">
+        <h2 className="universities-title">Registered Lebanese Universities</h2>
+        <p className="universities-subtitle">
+          These institutions can register on our platform to issue verified certificates
+        </p>
+        <div className="universities-grid">
+          {universities.map((uni, index) => (
+            <div key={index} className="university-card">
+              <FaGraduationCap className="uni-icon" />
+              <span>{uni}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="how-section">
+        <h2 className="how-title">How It Works</h2>
+        <div className="how-container">
+          {steps.map((step, index) => (
+            <div key={index} className="how-card">
+              <div className="how-number">{step.number}</div>
+              <h3 className="how-card-title">{step.title}</h3>
+              <p className="how-card-description">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
-    )
+  );
 }
 
 export default Hero;

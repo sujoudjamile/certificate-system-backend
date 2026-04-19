@@ -11,7 +11,12 @@ const userRoutes = require("./routes/userRoutes");
 const universityRoutes = require("./routes/universityRoutes");
 const staffRoutes = require("./routes/staffRoutes");
 const studentRoutes = require("./routes/studentRoutes");
+
 const fraudRoutes = require("./routes/fraudRoutes");
+
+const certificateRoutes = require("./routes/certificationRoutes");
+
+
 
 const errorHandler = require("./middleware/errorHandler");
 
@@ -58,7 +63,11 @@ app.use("/api/users", userRoutes);
 app.use("/api/universities", universityRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/students", studentRoutes);
+
 app.use("/api/fraud", fraudRoutes);
+
+
+app.use("/api/certificates", certificateRoutes);
 
 /*
 ==================================

@@ -7,6 +7,7 @@ import SuperAdmin from "./pages/superAdmin";
 import UniversityAdmin from "./pages/admin";
 import Staff from "./pages/staff";
 import ActivationPage from "./pages/ActivationPage";
+import VerifyPage from "./pages/VerifyPage";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
 
         <Route path="/activate-account" element={<ActivationPage />} />
 
+        <Route path="/verify/:cert_number" element={<VerifyPage />} />
       </Routes>
     </Router>
   );
