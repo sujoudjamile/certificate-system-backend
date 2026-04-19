@@ -66,9 +66,10 @@ const addStudent = async (req, res) => {
     const age = parseAge(date_of_birth);
     if (isNaN(age)) return res.status(400).json({ message: "Invalid date of birth" });
     if (age < 17 || age > 100) return res.status(400).json({ message: "Wrong date of birth" });
-
+    
     degree = degree.trim();
-    major  = major.trim();
+    major = major.trim().toLowerCase();
+    major = major.charAt(0).toUpperCase() + major.slice(1);
 
     // ================================
     // STEP 1: CHECK OR CREATE STUDENT
@@ -92,48 +93,74 @@ const addStudent = async (req, res) => {
     // STEP 2 — GLOBAL DEGREE VALIDATION
     // ================================
     const [allRecords] = await db.query(
-      "SELECT degree FROM student_records WHERE student_id = ?", [studentId]
-    );
-    const hasBachelor = allRecords.some(r => r.degree === "Bachelor");
-    const hasMaster   = allRecords.some(r => r.degree === "Master");
+  "SELECT degree, major FROM student_records WHERE student_id = ?",
+  [studentId]
+);
 
-    if (degree === "Master" && !hasBachelor)
-      return res.status(400).json({ message: "Student must have a Bachelor degree before Master" });
-    if (degree === "PhD" && !hasMaster)
-      return res.status(400).json({ message: "Student must have a Master degree before PhD" });
+const hasBachelor = allRecords.some(r => r.degree === "Bachelor");
+const hasMaster   = allRecords.some(r => r.degree === "Master");
 
-    // ================================
-    // STEP 3 — PER UNIVERSITY RECORDS
-    // ================================
-    const [records] = await db.query(
-      "SELECT * FROM student_records WHERE student_id = ? AND university_id = ?",
-      [studentId, university_id]
-    );
+// ======================
+// STEP 1 — DEGREE FLOW
+// ======================
+if (degree === "Master" && !hasBachelor) {
+  return res.status(400).json({
+    message: "Student must have a Bachelor degree before Master"
+  });
+}
 
-    const degreeOrder   = ["Bachelor", "Master", "PhD"];
-    const highestDegree = records
-      .filter(r => r.major === major)
-      .map(r => r.degree)
-      .sort((a, b) => degreeOrder.indexOf(b) - degreeOrder.indexOf(a))[0];
+if (degree === "PhD" && !hasMaster) {
+  return res.status(400).json({
+    message: "Student must have a Master degree before PhD"
+  });
+}
 
-    if (highestDegree) {
-      const ci = degreeOrder.indexOf(highestDegree);
-      const ni = degreeOrder.indexOf(degree);
-      if (ni < ci)  return res.status(400).json({ message: `Cannot downgrade from ${highestDegree} to ${degree}` });
-      if (ni === ci) return res.status(400).json({ message: `Student already has a ${degree} degree in this university` });
+// ======================
+// STEP 2 — MAJOR CONSISTENCY
+// ======================
+const bachelorMajors = allRecords
+  .filter(r => r.degree === "Bachelor")
+  .map(r => r.major);
+
+const masterMajors = allRecords
+  .filter(r => r.degree === "Master")
+  .map(r => r.major);
+
+// Master check
+if (degree === "Master" && bachelorMajors.length > 0) {
+  if (!bachelorMajors.includes(major)) {
+    return res.status(400).json({
+      message: "Master major must match at least one Bachelor major"
+    });
+  }
+}
+
+// PhD check
+if (degree === "PhD" && masterMajors.length > 0) {
+  if (!masterMajors.includes(major)) {
+    return res.status(400).json({
+      message: "PhD major must match at least one Master major"
+    });
+  }
+}
+
+const [existing] = await db.query(
+  `SELECT id, university_id, degree, major
+   FROM student_records
+   WHERE student_id = ? AND degree = ? AND major = ?`,
+  [studentId, degree, major]
+);
+
+if (existing.length > 0) {
+  return res.status(400).json({
+    message: "This student already has this degree and major in another university.",
+    conflict: {
+      university_id: existing[0].university_id,
+      degree: existing[0].degree,
+      major: existing[0].major
     }
-
-    if (degree === "Master") {
-      const bachelor = records.find(r => r.degree === "Bachelor");
-      if (bachelor && bachelor.major !== major)
-        return res.status(400).json({ message: "Master must match Bachelor major" });
-    }
-    if (degree === "PhD") {
-      const master = records.find(r => r.degree === "Master");
-      if (master && master.major !== major)
-        return res.status(400).json({ message: "PhD must match Master major" });
-    }
-
+  });
+}
     // ================================
     // STEP 4 — INSERT RECORD
     // ================================
@@ -170,17 +197,20 @@ const addStudent = async (req, res) => {
   }
 };
 
+
 // ==========================
 // GET STUDENTS
 // ==========================
 const getStudents = async (req, res) => {
   try {
     const university_id = req.user.university_id;
+    console.log("Current university:", university_id); // 👈 ADD THIS
     const [rows] = await db.query(
       `SELECT
         sr.id        AS record_id,
         sn.id,
         sn.full_name,
+        sr.university_id,   -- 👈 ADD THIS
         sn.national_id,
         sn.date_of_birth,
         sr.student_code,
@@ -195,6 +225,7 @@ const getStudents = async (req, res) => {
       ORDER BY sn.full_name ASC, sr.created_at ASC`,
       [university_id]
     );
+    console.log("Returned rows:", rows); // 👈 ADD THIS
     res.json({ status: "success", students: rows });
   } catch (error) {
     console.error("GET STUDENTS ERROR:", error);
