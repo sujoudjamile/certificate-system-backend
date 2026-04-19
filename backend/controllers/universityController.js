@@ -97,15 +97,17 @@ const createUniversity = asyncHandler(async (req, res) => {
 
     // Generate admin verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationExpires = new Date(
-      Date.now() + 24 * 60 * 60 * 1000
-    );
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Unique Vault key reference
+    // Unique Vault key reference name for this university
     const keyReference = `university_${crypto.randomUUID()}_key`;
 
-    // Create Vault key
-    const publicKey = "TEST_PUBLIC_KEY";
+    // ✅ CREATE RSA-2048 signing key in Vault Transit
+    // The private key stays inside Vault — we only store the public key in DB.
+    await createVaultKey(keyReference);
+
+    // ✅ READ back the public key so we can store it in DB for verification
+    const publicKey = await getVaultPublicKey(keyReference);
 
     // 🚫 Check if university already has admin
     const [existingUniversity] = await connection.query(
@@ -122,7 +124,7 @@ const createUniversity = asyncHandler(async (req, res) => {
       }
     }
 
-    // ✅ Insert university
+    // ✅ Insert university (with real public key from Vault)
     const [universityResult] = await connection.query(
       `INSERT INTO universities
        (name, activation_key, public_key, key_reference)
