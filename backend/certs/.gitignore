@@ -1,0 +1,5 @@
+# Never commit private keys
+rootCA.key.pem
+*.key.pem
+*.p12
+

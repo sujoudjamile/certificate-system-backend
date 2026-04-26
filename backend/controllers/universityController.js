@@ -6,7 +6,7 @@ const sendEmail = require("../utils/sendEmail");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
 const { createVaultKey, getVaultPublicKey } = require("../utils/vaultClient");
-
+const logAction = require("../utils/auditLog");
 /*
 ==================================
 HELPER
@@ -159,6 +159,27 @@ const createUniversity = asyncHandler(async (req, res) => {
 
     await connection.commit();
 
+    // ── Generate X.509 cert for PDF signing ──
+    // This is separate from the Vault key (which is for data signing)
+    let x509CertPem      = null;
+    let encryptedPrivKey = null;
+
+    try {
+      const { generateUniversityCert } = require("../utils/pdfSigner");
+      const result = generateUniversityCert(universityName);
+      x509CertPem      = result.x509CertPem;
+      encryptedPrivKey = result.encryptedPrivateKey;
+
+      await db.query(
+        "UPDATE universities SET x509_cert = ?, pdf_signing_key = ? WHERE id = ?",
+        [x509CertPem, encryptedPrivKey, universityId]
+      );
+      console.log(`✅ X.509 cert generated for ${universityName}`);
+    } catch (certErr) {
+      // Non-fatal: university is created, cert can be generated later
+      console.error("X.509 cert generation failed:", certErr.message);
+    }
+
     const verifyLink = `${process.env.FRONTEND_URL}/activate-account?token=${verificationToken}`;
 
     try {
@@ -175,24 +196,47 @@ const createUniversity = asyncHandler(async (req, res) => {
         `,
       });
 
+      await logAction({
+        user_id:       req.user.id,
+        university_id: universityId,
+        action:        "CREATE_UNIVERSITY",
+        description:   `Created university ${universityName} with admin ${adminEmail}`,
+        status:        "success",
+        target_type:   "university",
+        target_id:     universityId,
+        ip_address:    req.ip,
+      });
+
       return res.status(201).json({
         status: "success",
-        message:
-          "University created successfully. Verification email sent to the admin.",
+        message: "University created successfully. Verification email sent to the admin.",
         universityId,
         adminId: adminResult.insertId,
         activationKey,
         keyReference,
+        pdf_cert_generated: x509CertPem !== null,
       });
     } catch (emailError) {
+
+      await logAction({
+        user_id:       req.user.id,
+        university_id: universityId,
+        action:        "CREATE_UNIVERSITY",
+        description:   `Created university ${universityName} — email failed`,
+        status:        "success",
+        target_type:   "university",
+        target_id:     universityId,
+        ip_address:    req.ip,
+      });
+
       return res.status(201).json({
         status: "warning",
-        message:
-          "University created successfully, but email could not be sent.",
+        message: "University created successfully, but email could not be sent.",
         universityId,
         adminId: adminResult.insertId,
         activationKey,
         keyReference,
+        pdf_cert_generated: x509CertPem !== null,
         emailError: emailError.message,
       });
     }

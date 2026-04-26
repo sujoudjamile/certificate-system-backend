@@ -289,3 +289,70 @@
 .qr-img     { display:block; width:155px; height:155px; }
 .qr-hint    { font-size:11px; color:#777; margin:6px 0 0; text-align:center; }
 .cert-success-box .modal-actions { justify-content:center; }
+/* ══════════════════════════════════════
+   EDIT RECORD BUTTON (inside degree row)
+══════════════════════════════════════ */
+.edit-record-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.edit-record-btn:hover {
+  background: linear-gradient(135deg, #ff3b30, #ff6a3d);
+  border-color: transparent;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.35);
+}
+
+/* ══════════════════════════════════════
+   EDIT MODAL — LOCK BANNER
+══════════════════════════════════════ */
+.edit-locked-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin-bottom: 6px;
+}
+
+.edit-locked-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #ef4444;
+}
+
+.edit-locked-banner strong {
+  color: #f87171;
+}
+
+/* ── NID note inside edit modal ── */
+.edit-nid-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin-bottom: 6px;
+}
