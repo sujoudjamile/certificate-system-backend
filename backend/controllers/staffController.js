@@ -5,7 +5,7 @@ const crypto = require("crypto"); //Used to generate a secure random token for e
 const sendEmail = require("../utils/sendEmail");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");//Used to create custom error messages like
-
+const logAction = require("../utils/auditLog");//Used to create custom error messages like
 /*
 ==================================
 HELPER
@@ -117,12 +117,34 @@ const addStaff = asyncHandler(async (req, res) => {
       `,
     });
 
+    await logAction({
+      user_id:       adminId,
+      university_id: universityId,
+      action:        "ADD_STAFF",
+      description:   `Added staff member ${name} (${email})`,
+      status:        "success",
+      target_type:   "staff",
+      target_id:     result.insertId,
+      ip_address:    req.ip,
+    });
+
     return res.status(201).json({
       status: "success",
       message: "Staff member added successfully. Verification email sent.",
       staffId: result.insertId,
     });
   } catch (emailErr) {
+      await logAction({
+      user_id:       adminId,
+      university_id: universityId,
+      action:        "ADD_STAFF",
+      description:   `Added staff member ${name} (${email}) — email failed`,
+      status:        "success",
+      target_type:   "staff",
+      target_id:     result.insertId,
+      ip_address:    req.ip,
+    });
+
     return res.status(201).json({
       status: "warning",
       message: "Staff member added, but email could not be sent.",

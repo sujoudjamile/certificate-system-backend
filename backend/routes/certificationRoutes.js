@@ -1,31 +1,29 @@
-// routes/certificateRoutes.js
+// routes/certificationRoutes.js
 
 const express = require("express");
-const router = express.Router();
+const router  = express.Router();
 
 const {
   issueCertificate,
   getCertificates,
   getCertificateById,
   verifyCertificate,
+  verifyPdfUpload,
   revokeCertificate,
   downloadCertificatePdf,
+  upload,
 } = require("../controllers/certificationController");
 
 const authenticateToken = require("../middleware/authMiddleware");
-const authorizeRoles = require("../middleware/roleMiddleware");
+const authorizeRoles    = require("../middleware/roleMiddleware");
 
-/*
-==================================
-CERTIFICATE ROUTES
-==================================
-*/
-
-// PUBLIC — anyone can verify a certificate by cert_number
+// PUBLIC — verify by cert_number (QR scan)
 router.get("/verify/:cert_number", verifyCertificate);
 
+// PUBLIC — verify by uploading the actual PDF file
+router.post("/verify-pdf", upload.single("pdf"), verifyPdfUpload);
 
-// PROTECTED — staff & admin can issue certificates
+// PROTECTED — issue certificate
 router.post(
   "/",
   authenticateToken,
@@ -33,7 +31,7 @@ router.post(
   issueCertificate
 );
 
-// PROTECTED — staff & admin see their university's certs; super_admin sees all
+// PROTECTED — list certificates
 router.get(
   "/",
   authenticateToken,
@@ -41,7 +39,7 @@ router.get(
   getCertificates
 );
 
-// PROTECTED — get single certificate details
+// PROTECTED — single certificate
 router.get(
   "/:id",
   authenticateToken,
@@ -49,7 +47,7 @@ router.get(
   getCertificateById
 );
 
-// PROTECTED — only admin (or super_admin) can revoke
+// PROTECTED — revoke
 router.patch(
   "/:id/revoke",
   authenticateToken,
@@ -57,7 +55,7 @@ router.patch(
   revokeCertificate
 );
 
-// PROTECTED — download printable PDF
+// PROTECTED — download signed PDF
 router.get(
   "/:id/pdf",
   authenticateToken,

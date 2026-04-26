@@ -13,10 +13,11 @@ const staffRoutes = require("./routes/staffRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 
 const fraudRoutes = require("./routes/fraudRoutes");
-
+const auditRoutes       = require("./routes/auditRouts");
 const certificateRoutes = require("./routes/certificationRoutes");
 
 
+const { startCertRenewalScheduler } = require("./utils/certRenewal");
 
 const errorHandler = require("./middleware/errorHandler");
 
@@ -59,15 +60,14 @@ app.use("/api", apiLimiter);
 ROUTES
 ==================================
 */
+
 app.use("/api/users", userRoutes);
 app.use("/api/universities", universityRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/students", studentRoutes);
-
 app.use("/api/fraud", fraudRoutes);
-
-
 app.use("/api/certificates", certificateRoutes);
+app.use("/api/audit", auditRoutes);
 
 /*
 ==================================
@@ -93,6 +93,11 @@ START SERVER
 */
 const PORT = process.env.PORT || 5000;
 
+
+
+
+// After app.listen — add this:
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  startCertRenewalScheduler(); // ← ADD THIS LINE
 });

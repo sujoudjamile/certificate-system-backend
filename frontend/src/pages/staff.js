@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import {
   LogOut, Download, ShieldCheck, QrCode, FileText, X,
   ChevronDown, ChevronUp, GraduationCap, BookOpen, Calendar,
-  Mail, Phone,
+  Mail, Phone, Pencil, Lock,
 } from "lucide-react";
 
 const API = "http://localhost:5000/api";
@@ -43,6 +43,15 @@ export default function Staff() {
   const [issuedCert,       setIssuedCert]       = useState(null);
   const [qrViewCert,       setQrViewCert]       = useState(null);
   const [expandedStudent,  setExpandedStudent]  = useState(null);
+
+  // ── Edit modal state ──────────────────────────────────────────────────────
+  const [showEditModal,  setShowEditModal]  = useState(false);
+  const [editRecord,     setEditRecord]     = useState(null);   // { record_id, student }
+  const [editForm,       setEditForm]       = useState({});
+  const [editError,      setEditError]      = useState("");
+  const [editLoading,    setEditLoading]    = useState(false);
+  const [editLocked,     setEditLocked]     = useState(false);
+  const setEF = (patch) => setEditForm(p => ({ ...p, ...patch }));
 
   const [studentMajors,  setStudentMajors]  = useState([]);
   const [studentDegrees, setStudentDegrees] = useState([]);
@@ -87,7 +96,6 @@ export default function Staff() {
     }
   }, [tab]);
 
-  // Re-fetch students every time the cert modal opens — ensures dropdown is fresh
   useEffect(() => {
     if (showCertModal) fetchStudents();
   }, [showCertModal]);
@@ -97,7 +105,13 @@ export default function Staff() {
     const map = {};
     (students || []).forEach(s => {
       if (!map[s.id]) {
-        map[s.id] = { id: s.id, full_name: s.full_name, national_id: s.national_id, records: [] };
+        map[s.id] = {
+          id: s.id,
+          full_name: s.full_name,
+          national_id: s.national_id,
+          date_of_birth: s.date_of_birth,
+          records: [],
+        };
       }
       map[s.id].records.push({
         record_id: s.record_id, student_code: s.student_code,
@@ -108,7 +122,6 @@ export default function Staff() {
     return Object.values(map);
   }, [students]);
 
-  // One entry per students_new.id for the cert dropdown
   const uniqueStudents = useMemo(() => {
     const seen = new Set();
     return (students || []).filter(s => {
@@ -169,6 +182,55 @@ export default function Staff() {
     const degrees = [...new Set(src.filter(r => r.major === major).map(r => r.degree).filter(Boolean))];
     setStudentDegrees(degrees);
     if (degrees.length === 1) setCF({ major, degree: degrees[0] });
+  };
+
+  // ── Open edit modal ───────────────────────────────────────────────────────
+  const openEditModal = (student, rec) => {
+    setEditRecord({ record_id: rec.record_id, student });
+    setEditForm({
+      full_name:     student.full_name,
+      date_of_birth: student.date_of_birth?.substring(0, 10) || "",
+      email:         rec.email        || "",
+      phone:         rec.phone        || "",
+      student_code:  rec.student_code || "",
+      degree:        rec.degree       || "",
+      major:         rec.major        || "",
+    });
+    setEditError("");
+    setEditLocked(false);
+    setShowEditModal(true);
+  };
+
+  // ── Save edit ─────────────────────────────────────────────────────────────
+  const saveEdit = async () => {
+    if (!editRecord) return;
+    setEditError("");
+    setEditLoading(true);
+    try {
+      await axios.patch(
+        `${API}/students/record/${editRecord.record_id}`,
+        {
+          full_name:     editForm.full_name     || undefined,
+          date_of_birth: editForm.date_of_birth || undefined,
+          email:         editForm.email         || undefined,
+          phone:         editForm.phone         || undefined,
+          student_code:  editForm.student_code  || undefined,
+          degree:        editForm.degree        || undefined,
+          major:         editForm.major         || undefined,
+        },
+        authHeader()
+      );
+      await fetchStudents();
+      setShowEditModal(false);
+    } catch (err) {
+      const msg = err.response?.data?.message || "Something went wrong";
+      if (msg.toLowerCase().includes("locked") || msg.toLowerCase().includes("certificate")) {
+        setEditLocked(true);
+      }
+      setEditError(msg);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   // ── Add student ───────────────────────────────────────────────────────────
@@ -251,7 +313,7 @@ export default function Staff() {
       <div className="topbar">
         <input placeholder="Search by name, ID, or email…" />
         {tab === "students"
-          ? <button className="green" onClick={() => setShowStudentModal(true)}>+ Add Student</button>
+          ? <button className="green" onClick={() => setShowStudentModal(true)}>+ Add Student/Degree</button>
           : <button className="green" onClick={() => setShowCertModal(true)}>+ Add Certificate</button>}
       </div>
 
@@ -311,8 +373,20 @@ export default function Staff() {
                                 </div>
                               </div>
                             </div>
-                            <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:"rgba(255,255,255,0.35)" }}>
-                              <Calendar size={10}/> {formatDate(rec.enrolled_at)}
+
+                            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:"rgba(255,255,255,0.35)" }}>
+                                <Calendar size={10}/> {formatDate(rec.enrolled_at)}
+                              </div>
+                              {/* ── EDIT BUTTON ── */}
+                              <button
+                                className="edit-record-btn"
+                                onClick={() => openEditModal(student, rec)}
+                                title="Edit this record"
+                              >
+                                <Pencil size={12} />
+                                Edit
+                              </button>
                             </div>
                           </div>
                         );
@@ -369,6 +443,128 @@ export default function Staff() {
             <div className="modal-actions" style={{ justifyContent:"center", marginTop:16 }}>
               <button onClick={() => setQrViewCert(null)}>Close</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT STUDENT RECORD MODAL ── */}
+      {showEditModal && editRecord && (
+        <div className="modal">
+          <div className="modal-box" style={{ maxHeight:"90vh", overflowY:"auto" }}>
+            <div className="modal-header">
+              <div>
+                <h2>Edit Student Record</h2>
+                <p className="modal-subtitle">
+                  {editRecord.student.full_name} · {editRecord.record_id && `Record #${editRecord.record_id}`}
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => {
+                setShowEditModal(false); setEditError(""); setEditLocked(false);
+              }}><X size={18}/></button>
+            </div>
+
+            {/* Locked banner */}
+            {editLocked && (
+              <div className="edit-locked-banner">
+                <Lock size={16} />
+                <span>This record is <strong>locked</strong> — a certificate has been issued and cannot be modified to prevent falsification.</span>
+              </div>
+            )}
+
+            {/* Generic error */}
+            {editError && !editLocked && (
+              <div className="form-error">⚠ {editError}</div>
+            )}
+
+            {/* Only show form if not locked */}
+            {!editLocked && (
+              <>
+                <div className="form-section-label">Personal Info</div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Full Name</label>
+                    <input className="form-input" placeholder="First & Last name"
+                      value={editForm.full_name}
+                      onChange={e => setEF({ full_name: e.target.value })}/>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Date of Birth</label>
+                    <input className="form-input" type="date"
+                      value={editForm.date_of_birth}
+                      onChange={e => setEF({ date_of_birth: e.target.value })}/>
+                  </div>
+                </div>
+
+                <div className="edit-nid-note">
+                  <Lock size={11} style={{ flexShrink:0 }}/>
+                  National ID cannot be changed
+                </div>
+
+                <div className="form-section-label">University Details</div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Student Code</label>
+                    <input className="form-input" placeholder="8-digit code"
+                      value={editForm.student_code}
+                      onChange={e => setEF({ student_code: e.target.value })}/>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Phone</label>
+                    <input className="form-input" placeholder="71123456"
+                      value={editForm.phone}
+                      onChange={e => setEF({ phone: e.target.value })}/>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Email</label>
+                  <input className="form-input" placeholder="student@example.com"
+                    value={editForm.email}
+                    onChange={e => setEF({ email: e.target.value })}/>
+                </div>
+
+                <div className="form-section-label">Academic</div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Major</label>
+                    <input className="form-input" placeholder="e.g. Computer Science"
+                      value={editForm.major}
+                      onChange={e => setEF({ major: e.target.value })}/>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Degree</label>
+                    <select className="form-select"
+                      value={editForm.degree}
+                      onChange={e => setEF({ degree: e.target.value })}>
+                      <option>Bachelor</option>
+                      <option>Master</option>
+                      <option>PhD</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button onClick={saveEdit} disabled={editLoading}>
+                    {editLoading ? "Saving…" : "Save Changes"}
+                  </button>
+                  <button onClick={() => {
+                    setShowEditModal(false); setEditError(""); setEditLocked(false);
+                  }}>Cancel</button>
+                </div>
+              </>
+            )}
+
+            {/* Locked — only close button */}
+            {editLocked && (
+              <div className="modal-actions" style={{ marginTop:20 }}>
+                <button onClick={() => { setShowEditModal(false); setEditError(""); setEditLocked(false); }}>
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
