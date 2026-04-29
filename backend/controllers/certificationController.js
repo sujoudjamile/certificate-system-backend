@@ -9,8 +9,11 @@ const multer       = require("multer");
 
 const { signWithVault, getVaultPublicKey }          = require("../utils/vaultClient");
 const { signPdf, verifyPdfSignature, buildPdfBuffer } = require("../utils/pdfSigner");
-const logAction = require("../utils/auditLog");
-// ── pdf-parse: safe import that works on Node v24 ──
+
+// ── Fraud Detection Engine ──
+const { runFraudChecks, applyFraudFlags } = require("../utils/fraudDetection");
+
+// ── pdf-parse: safe import ──
 let pdfParse;
 try {
   const lib = require("pdf-parse");
@@ -68,37 +71,18 @@ const buildHashPayload = ({
   degree, major, GPA, graduation_date,
 }) =>
   [
-    cert_number,
-    student_id,
-    university_id,
-    student_name,
-    degree,
-    major,
-    normalizeGPA(GPA),
-    normalizeDate(graduation_date),
+    cert_number, student_id, university_id, student_name,
+    degree, major, normalizeGPA(GPA), normalizeDate(graduation_date),
   ].join("|");
-
-const formatDatePdf = (raw) => {
-  if (!raw) return "N/A";
-  const str = raw instanceof Date
-    ? raw.toISOString().split("T")[0]
-    : String(raw).split("T")[0].split(" ")[0];
-  const [y, m, d] = str.split("-").map(Number);
-  if (!y || !m || !d) return String(raw);
-  const months = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December",
-  ];
-  return `${String(d).padStart(2,"0")} ${months[m-1]} ${y}`;
-};
 
 /*
 ==================================
 ISSUE CERTIFICATE
 ==================================
-Uses a DB transaction so the INSERT + PDF signing + UPDATE
-are all atomic — if anything fails, the whole thing rolls back.
-No orphaned rows, no need to revoke-and-retry.
+After the certificate is committed inside the DB transaction,
+the fraud engine runs in the background (fire-and-forget).
+The HTTP response is returned immediately — fraud detection
+never blocks or fails a legitimate issuance.
 */
 const issueCertificate = asyncHandler(async (req, res) => {
   const { student_id, degree, major, GPA, graduation_date } = req.body;
@@ -177,6 +161,8 @@ const issueCertificate = asyncHandler(async (req, res) => {
 
   // ── Transaction: INSERT + fetch + sign PDF + store blob ──
   const connection = await db.getConnection();
+  let certId;
+
   try {
     await connection.beginTransaction();
 
@@ -193,21 +179,9 @@ const issueCertificate = asyncHandler(async (req, res) => {
       ]
     );
 
-    await logAction({
-    user_id:        created_by,
-    university_id:  university_id,
-    action:         "ISSUE_CERTIFICATE",
-    description:    `Issued certificate ${cert_number} for student ID ${student_id} (${degree} - ${major})`,
-    status:         "success",
-    target_type:    "certificate",
-    target_id:      result.insertId,
-    certificate_id: result.insertId,
-    ip_address:     req.ip,
-  });
+    certId = insertResult.insertId;
 
-    const certId = insertResult.insertId;
-
-    // Step 2: Fetch full row (needed by PDF builder for created_at etc.)
+    // Step 2: Fetch full row
     const [fetchedRows] = await connection.query(
       `SELECT c.*,
               sn.full_name AS student_name,
@@ -253,33 +227,10 @@ const issueCertificate = asyncHandler(async (req, res) => {
         "UPDATE certificates SET signed_pdf = ? WHERE id = ?",
         [signedPdfBuffer, certId]
       );
-      console.log(`✅ signed_pdf stored for cert id ${certId}`);
     }
 
     // Step 5: Commit
     await connection.commit();
-
-    return res.status(201).json({
-      status: "success",
-      message: pdfSigned
-        ? "Certificate issued successfully with PKCS#7 digital signature."
-        : "Certificate issued. PDF signing skipped — check university X.509 configuration.",
-      certificate: {
-        id:               certId,
-        cert_number,
-        certification_hash,
-        student:          student.full_name,
-        degree,
-        major,
-        GPA:              GPA ?? null,
-        graduation_date:  normGradDate,
-        university:       university.name,
-        qr_code,
-        verify_url:       verifyUrl,
-        status:           "issued",
-        pdf_signed:       pdfSigned,
-      },
-    });
 
   } catch (err) {
     await connection.rollback();
@@ -288,6 +239,49 @@ const issueCertificate = asyncHandler(async (req, res) => {
   } finally {
     connection.release();
   }
+
+  // ── Step 6: Fraud detection — fire-and-forget, NEVER blocks the response ──
+  setImmediate(() => {
+    runFraudChecks({
+      certId,
+      studentId:      student_id,
+      universityId:   university_id,
+      createdBy:      created_by,
+      degree,
+      major,
+      GPA,
+      graduationDate: normGradDate,
+    })
+      .then(flags => applyFraudFlags(flags, university_id))
+      .then(inserted => {
+        if (inserted.length > 0) {
+          console.log(
+            `[FraudEngine] 🚨 ${inserted.length} flag(s) auto-raised for cert ${cert_number}`
+          );
+        }
+      })
+      .catch(err => console.error("[FraudEngine] Background check failed:", err.message));
+  });
+
+  // ── Respond to client immediately ──
+  return res.status(201).json({
+    status: "success",
+    message: "Certificate issued successfully with PKCS#7 digital signature.",
+    certificate: {
+      id:               certId,
+      cert_number,
+      certification_hash,
+      student:          student.full_name,
+      degree,
+      major,
+      GPA:              GPA ?? null,
+      graduation_date:  normGradDate,
+      university:       university.name,
+      qr_code,
+      verify_url:       verifyUrl,
+      status:           "issued",
+    },
+  });
 });
 
 /*
@@ -355,8 +349,6 @@ const getCertificateById = asyncHandler(async (req, res) => {
 ==================================
 VERIFY CERTIFICATE — QR SCAN (PUBLIC)
 ==================================
-Uses certification_hash + Vault RSA signature.
-Unchanged from the original system.
 */
 const verifyCertificate = asyncHandler(async (req, res) => {
   const { cert_number } = req.params;
@@ -387,17 +379,11 @@ const verifyCertificate = asyncHandler(async (req, res) => {
       reason:  "revoked",
       message: "This certificate has been revoked",
       certificate: {
-        id:              cert.id,
-        cert_number:     cert.cert_number,
-        student_name:    cert.student_name,
-        national_id:     cert.national_id,
-        university:      cert.university_name,
-        degree:          cert.degree,
-        major:           cert.major,
-        GPA:             cert.GPA,
-        graduation_date: cert.graduation_date,
-        issued_at:       cert.created_at,
-        status:          cert.status,
+        id: cert.id, cert_number: cert.cert_number,
+        student_name: cert.student_name, national_id: cert.national_id,
+        university: cert.university_name, degree: cert.degree,
+        major: cert.major, GPA: cert.GPA, graduation_date: cert.graduation_date,
+        issued_at: cert.created_at, status: cert.status,
         has_pdf_signature: !!cert.has_pdf_signature,
       },
     });
@@ -414,71 +400,39 @@ const verifyCertificate = asyncHandler(async (req, res) => {
     graduation_date: cert.graduation_date,
   });
 
-  console.log("VERIFY payload  :", payload);
-
   const expectedHash = crypto.createHash("sha256").update(payload).digest("hex");
-  console.log("VERIFY expected :", expectedHash);
-  console.log("VERIFY stored   :", cert.certification_hash);
-
-  const hashMatch = expectedHash === cert.certification_hash;
+  const hashMatch    = expectedHash === cert.certification_hash;
 
   let signatureValid = false;
   try {
     const rawSig    = cert.digital_signature.replace(/^vault:v\d+:/, "");
     const publicKey = await getVaultPublicKey(cert.university_key_reference);
-
     const verifier  = crypto.createVerify("SHA256");
     verifier.update(payload);
-    signatureValid  = verifier.verify(
-      {
-        key:        publicKey,
-        padding:    crypto.constants.RSA_PKCS1_PSS_PADDING,
-        saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO,
-      },
+    signatureValid = verifier.verify(
+      { key: publicKey, padding: crypto.constants.RSA_PKCS1_PSS_PADDING, saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO },
       Buffer.from(rawSig, "base64")
     );
   } catch (err) {
     console.error("Signature verify error:", err.message);
-    signatureValid = false;
   }
 
-  console.log("VERIFY hashMatch:", hashMatch, "| sigValid:", signatureValid);
-
   const valid = hashMatch && signatureValid;
-
-  await logAction({
-    user_id:        null,
-    university_id:  cert.university_id,
-    action:         "VERIFY_CERTIFICATE",
-    description:    `Certificate ${cert_number} verified — valid: ${valid}`,
-    status:         valid ? "success" : "failure",
-    target_type:    "certificate",
-    target_id:      cert.id,
-    certificate_id: cert.id,
-    ip_address:     req.ip,
-  });
 
   return res.json({
     status: "success",
     valid,
     certificate: {
-      id:              cert.id,
-      cert_number:     cert.cert_number,
-      student_name:    cert.student_name,
-      national_id:     cert.national_id,
-      university:      cert.university_name,
-      degree:          cert.degree,
-      major:           cert.major,
-      GPA:             cert.GPA,
-      graduation_date: cert.graduation_date,
-      issued_at:       cert.created_at,
-      status:          cert.status,
+      id: cert.id, cert_number: cert.cert_number,
+      student_name: cert.student_name, national_id: cert.national_id,
+      university: cert.university_name, degree: cert.degree,
+      major: cert.major, GPA: cert.GPA, graduation_date: cert.graduation_date,
+      issued_at: cert.created_at, status: cert.status,
       has_pdf_signature: !!cert.has_pdf_signature,
     },
     checks: {
-      hash_match:       hashMatch,
-      signature_valid:  signatureValid,
-      pdf_signed:       !!cert.has_pdf_signature,
+      hash_match: hashMatch, signature_valid: signatureValid,
+      pdf_signed: !!cert.has_pdf_signature,
     },
   });
 });
@@ -487,29 +441,21 @@ const verifyCertificate = asyncHandler(async (req, res) => {
 ==================================
 VERIFY PDF UPLOAD (PUBLIC)
 ==================================
-1. Validate magic bytes
-2. Extract cert_number from PDF text
-3. Verify embedded PKCS#7 signature
-4. Cross-check DB for revocation
 */
 const verifyPdfUpload = asyncHandler(async (req, res) => {
   if (!req.file)
     throw new AppError("Please upload a PDF file", 400);
 
-  // ── 1. Magic bytes check ──
   const magic = req.file.buffer.slice(0, 4).toString("ascii");
   if (!magic.startsWith("%PDF"))
     throw new AppError("Uploaded file is not a valid PDF", 400);
 
-  // ── 2. Extract cert_number from PDF text ──
   let cert_number = null;
   try {
     if (typeof pdfParse === "function") {
       const pdfData = await pdfParse(req.file.buffer);
       const match   = pdfData.text.match(/UNIV-\d+-\d{4}-[A-F0-9]+/i);
       if (match) cert_number = match[0].toUpperCase();
-    } else {
-      console.error("pdfParse is not available");
     }
   } catch (parseErr) {
     console.error("pdf-parse error:", parseErr.message);
@@ -518,18 +464,11 @@ const verifyPdfUpload = asyncHandler(async (req, res) => {
   if (!cert_number)
     throw new AppError(
       "Could not find a CertifyLB certificate number in this PDF. " +
-      "Make sure you are uploading the original certificate PDF.",
-      400
+      "Make sure you are uploading the original certificate PDF.", 400
     );
 
-  // ── 3. Verify PKCS#7 signature ──
   const sigResult = verifyPdfSignature(req.file.buffer);
 
-  console.log("=== PDF VERIFY RESULT ===");
-  console.log(JSON.stringify(sigResult, null, 2));
-  console.log("=========================");
-
-  // ── 4. Cross-check with DB ──
   const [rows] = await db.query(
     `SELECT c.cert_number, c.status, c.degree, c.major, c.GPA,
             c.graduation_date, c.created_at,
@@ -544,17 +483,14 @@ const verifyPdfUpload = asyncHandler(async (req, res) => {
 
   if (rows.length === 0) {
     return res.json({
-      status:    "success",
-      pdf_valid: false,
+      status:    "success", pdf_valid: false, cert_number, signature: sigResult,
       message:   "Certificate number found in PDF but not in our database.",
-      cert_number,
-      signature: sigResult,
     });
   }
 
-  const cert      = rows[0];
-  const isRevoked = cert.status === "revoked";
-  const overallValid = sigResult.valid && !isRevoked;
+  const cert          = rows[0];
+  const isRevoked     = cert.status === "revoked";
+  const overallValid  = sigResult.valid && !isRevoked;
 
   return res.json({
     status:    "success",
@@ -562,16 +498,11 @@ const verifyPdfUpload = asyncHandler(async (req, res) => {
     revoked:   isRevoked,
     cert_number,
     certificate: {
-      cert_number:     cert.cert_number,
-      student_name:    cert.student_name,
-      national_id:     cert.national_id,
-      degree:          cert.degree,
-      major:           cert.major,
-      GPA:             cert.GPA,
-      graduation_date: cert.graduation_date,
-      issued_at:       cert.created_at,
-      university:      cert.university_name,
-      cert_status:     cert.status,
+      cert_number:     cert.cert_number, student_name:  cert.student_name,
+      national_id:     cert.national_id, degree:        cert.degree,
+      major:           cert.major,       GPA:           cert.GPA,
+      graduation_date: cert.graduation_date, issued_at: cert.created_at,
+      university:      cert.university_name, cert_status: cert.status,
     },
     signature: {
       valid:            sigResult.valid,
@@ -609,24 +540,10 @@ const revokeCertificate = asyncHandler(async (req, res) => {
 
   if (role !== "super_admin" && cert.university_id !== university_id)
     throw new AppError("Access forbidden", 403);
-
   if (cert.status === "revoked")
     throw new AppError("Certificate is already revoked", 400);
 
   await db.query("UPDATE certificates SET status = 'revoked' WHERE id = ?", [id]);
-
-  await logAction({
-    user_id:        req.user.id,
-    university_id:  req.user.university_id,
-    action:         "REVOKE_CERTIFICATE",
-    description:    `Revoked certificate ID ${id}`,
-    status:         "success",
-    target_type:    "certificate",
-    target_id:      parseInt(id),
-    certificate_id: parseInt(id),
-    ip_address:     req.ip,
-  });
-
   return res.json({ status: "success", message: "Certificate revoked successfully" });
 });
 
@@ -634,8 +551,6 @@ const revokeCertificate = asyncHandler(async (req, res) => {
 ==================================
 DOWNLOAD CERTIFICATE AS PDF
 ==================================
-Serves the signed_pdf blob stored at issuance.
-Falls back to signing on demand, then unsigned if no keys.
 */
 const downloadCertificatePdf = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -656,7 +571,6 @@ const downloadCertificatePdf = asyncHandler(async (req, res) => {
 
   if (role !== "super_admin" && cert.university_id !== university_id)
     throw new AppError("Access forbidden", 403);
-
   if (cert.status === "revoked")
     throw new AppError("Cannot download a revoked certificate", 400);
 
@@ -666,12 +580,8 @@ const downloadCertificatePdf = asyncHandler(async (req, res) => {
     `attachment; filename="certificate_${cert.cert_number}.pdf"`
   );
 
-  // Case 1: serve stored signed PDF directly
-  if (cert.signed_pdf) {
-    return res.send(cert.signed_pdf);
-  }
+  if (cert.signed_pdf) return res.send(cert.signed_pdf);
 
-  // Case 2: no stored PDF — sign on demand
   if (cert.x509_cert && cert.pdf_signing_key) {
     try {
       const signedBuffer = await signPdf(cert, {
@@ -679,17 +589,13 @@ const downloadCertificatePdf = asyncHandler(async (req, res) => {
         x509_cert:       cert.x509_cert,
         pdf_signing_key: cert.pdf_signing_key,
       });
-      await db.query(
-        "UPDATE certificates SET signed_pdf = ? WHERE id = ?",
-        [signedBuffer, id]
-      );
+      await db.query("UPDATE certificates SET signed_pdf = ? WHERE id = ?", [signedBuffer, id]);
       return res.send(signedBuffer);
     } catch (err) {
       console.error("On-demand PDF signing failed:", err.message);
     }
   }
 
-  // Case 3: fallback unsigned PDF
   const unsignedBuffer = await buildPdfBuffer(cert);
   return res.send(unsignedBuffer);
 });
