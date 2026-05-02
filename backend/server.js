@@ -1,7 +1,7 @@
 // server.js
 
-require("dotenv").config();
-
+require("dotenv").config();require("dotenv").config({ path: __dirname + "/.env" });
+console.log("JWT_SECRET:", process.env.JWT_SECRET);
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
