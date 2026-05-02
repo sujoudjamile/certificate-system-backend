@@ -9,6 +9,8 @@ import {
   Mail, Phone, Pencil, Lock,
 } from "lucide-react";
 
+
+
 const API = "http://localhost:5000/api";
 const authHeader = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -19,6 +21,7 @@ const DEGREE_COLOR = {
   Master:   { bg: "rgba(236,72,153,0.12)",  border: "rgba(236,72,153,0.3)",  text: "#f472b6" },
   PhD:      { bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.3)",  text: "#fbbf24" },
 };
+
 
 const formatDate = (raw) => {
   if (!raw) return "—";
@@ -37,7 +40,7 @@ export default function Staff() {
   const [certs,    setCerts]    = useState([]);
   const [staff,    setStaff]    = useState(null);
   const [error,    setError]    = useState("");
-
+  
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showCertModal,    setShowCertModal]    = useState(false);
   const [issuedCert,       setIssuedCert]       = useState(null);
@@ -70,8 +73,11 @@ export default function Staff() {
   });
   const setCF = (patch) => setCertForm(p => ({ ...p, ...patch }));
 
-  const [certError,   setCertError]   = useState("");
-  const [certLoading, setCertLoading] = useState(false);
+  const [certError,          setCertError]          = useState("");
+  const [certLoading,        setCertLoading]        = useState(false);
+  const [certStudentSearch,  setCertStudentSearch]  = useState("");
+  const [showStudentDropdown,setShowStudentDropdown]= useState(false);
+  const certDropdownRef = useRef(null);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchStudents = async () => {
@@ -99,6 +105,17 @@ export default function Staff() {
   useEffect(() => {
     if (showCertModal) fetchStudents();
   }, [showCertModal]);
+
+  // ── Close student search dropdown on outside click ────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (certDropdownRef.current && !certDropdownRef.current.contains(e.target)) {
+        setShowStudentDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const groupedStudents = useMemo(() => {
@@ -129,6 +146,13 @@ export default function Staff() {
       seen.add(s.id); return true;
     });
   }, [students]);
+
+
+  const studentOptions = uniqueStudents.map(s => ({
+  value: s.id,
+  label: `${s.full_name} · ${s.national_id}`
+}));
+
 
   // ── National ID autofill ──────────────────────────────────────────────────
   const handleNidChange = (e) => {
@@ -695,28 +719,120 @@ export default function Staff() {
                 setShowCertModal(false);
                 setCF({ student_id:"", major:"", degree:"", gpa:"", graduation_date:"" });
                 setStudentMajors([]); setStudentDegrees([]); setCertError("");
+                setCertStudentSearch(""); setShowStudentDropdown(false);
               }}><X size={18}/></button>
             </div>
 
             {certError && <div className="form-error">⚠ {certError}</div>}
 
-            <div className="form-group">
+            <div className="form-group" ref={certDropdownRef}>
               <label className="form-label">Student</label>
               {uniqueStudents.length === 0 ? (
                 <div className="form-empty-note">
                   No students registered at your university yet. Add a student first.
                 </div>
               ) : (
-                <select className="form-select"
-                  value={certForm.student_id}
-                  onChange={e => { handleStudentSelect(e.target.value); setCertError(""); }}>
-                  <option value="">— Select a student —</option>
-                  {uniqueStudents.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.full_name}  ·  {s.national_id}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  {/* Search input */}
+                  <div style={{ position: "relative" }}>
+                    <input
+                      className="form-input"
+                      placeholder="Search by name or ID…"
+                      value={
+                        certForm.student_id
+                          ? (() => {
+                              const sel = uniqueStudents.find(s => String(s.id) === String(certForm.student_id));
+                              return showStudentDropdown
+                                ? certStudentSearch
+                                : sel ? `${sel.full_name}  ·  ${sel.national_id}` : certStudentSearch;
+                            })()
+                          : certStudentSearch
+                      }
+                      onFocus={() => {
+                        setCertStudentSearch("");
+                        setShowStudentDropdown(true);
+                      }}
+                      onChange={e => {
+                        setCertStudentSearch(e.target.value);
+                        setShowStudentDropdown(true);
+                        if (!e.target.value) {
+                          handleStudentSelect("");
+                          setCertError("");
+                        }
+                      }}
+                      style={{
+                        paddingRight: 32,
+                        borderColor: certForm.student_id ? "rgba(34,197,94,0.5)" : undefined,
+                      }}
+                    />
+                    {/* Clear button */}
+                    {certForm.student_id && (
+                      <button
+                        onClick={() => {
+                          handleStudentSelect("");
+                          setCertStudentSearch("");
+                          setCertError("");
+                        }}
+                        style={{
+                          position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                          background: "none", border: "none", cursor: "pointer",
+                          color: "rgba(255,255,255,0.4)", padding: 0, lineHeight: 1,
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown list */}
+                  {showStudentDropdown && (() => {
+                    const q = certStudentSearch.toLowerCase().trim();
+                    const filtered = uniqueStudents.filter(s =>
+                      s.full_name.toLowerCase().includes(q) ||
+                      String(s.national_id).toLowerCase().includes(q) ||
+                      (s.id && String(s.id).includes(q))
+                    );
+                    return (
+                      <div style={{
+                        background: "#111c36", border: "1px solid rgba(255,255,255,0.12)",
+                        borderRadius: 10, marginTop: 4,
+                        maxHeight: 200, overflowY: "auto",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+                      }}>
+                        {filtered.length === 0 ? (
+                          <div style={{ padding: "12px 14px", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                            No students match "{certStudentSearch}"
+                          </div>
+                        ) : filtered.map(s => (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              handleStudentSelect(s.id);
+                              setCertStudentSearch("");
+                              setCertError("");
+                              setShowStudentDropdown(false);
+                            }}
+                            style={{
+                              padding: "10px 14px", cursor: "pointer", fontSize: 13,
+                              display: "flex", justifyContent: "space-between", alignItems: "center",
+                              background: String(certForm.student_id) === String(s.id)
+                                ? "rgba(34,197,94,0.1)" : "transparent",
+                              borderLeft: String(certForm.student_id) === String(s.id)
+                                ? "3px solid #22c55e" : "3px solid transparent",
+                            }}
+                            onMouseEnter={e => { if (String(certForm.student_id) !== String(s.id)) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                            onMouseLeave={e => { if (String(certForm.student_id) !== String(s.id)) e.currentTarget.style.background = "transparent"; }}
+                          >
+                            <span style={{ fontWeight: 600, color: "white" }}>{s.full_name}</span>
+                            <span style={{ color: "rgba(255,255,255,0.35)", fontFamily: "monospace", fontSize: 11 }}>
+                              {s.national_id}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </>
               )}
             </div>
 
@@ -775,6 +891,7 @@ export default function Staff() {
                 setShowCertModal(false);
                 setCF({ student_id:"", major:"", degree:"", gpa:"", graduation_date:"" });
                 setStudentMajors([]); setStudentDegrees([]); setCertError("");
+                setCertStudentSearch(""); setShowStudentDropdown(false);
               }}>Cancel</button>
             </div>
           </div>

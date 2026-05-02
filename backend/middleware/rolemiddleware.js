@@ -1,4 +1,4 @@
-//middleware/rolemiddleware.js
+// middleware/roleMiddleware.js
 
 /*
 ==================================

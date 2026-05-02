@@ -1,23 +1,17 @@
 // controllers/certificationController.js
-
+const pdfParse = require("pdf-parse");
+  console.log("pdfParse type:", typeof pdfParse);
 const db           = require("../config/db");
 const crypto       = require("crypto");
 const QRCode       = require("qrcode");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError     = require("../utils/AppError");
 const multer       = require("multer");
-
 const { signWithVault, getVaultPublicKey }          = require("../utils/vaultClient");
 const { signPdf, verifyPdfSignature, buildPdfBuffer } = require("../utils/pdfSigner");
 const logAction = require("../utils/auditLog");
 // ── pdf-parse: safe import that works on Node v24 ──
-let pdfParse;
-try {
-  const lib = require("pdf-parse");
-  pdfParse  = typeof lib === "function" ? lib : lib.default ?? lib;
-} catch (e) {
-  console.error("pdf-parse load error:", e.message);
-}
+
 
 /*
 ==================================
@@ -200,8 +194,8 @@ const issueCertificate = asyncHandler(async (req, res) => {
     description:    `Issued certificate ${cert_number} for student ID ${student_id} (${degree} - ${major})`,
     status:         "success",
     target_type:    "certificate",
-    target_id:      result.insertId,
-    certificate_id: result.insertId,
+    target_id:      insertResult.insertId,
+certificate_id:     insertResult.insertId,
     ip_address:     req.ip,
   });
 
@@ -502,19 +496,17 @@ const verifyPdfUpload = asyncHandler(async (req, res) => {
     throw new AppError("Uploaded file is not a valid PDF", 400);
 
   // ── 2. Extract cert_number from PDF text ──
-  let cert_number = null;
-  try {
-    if (typeof pdfParse === "function") {
-      const pdfData = await pdfParse(req.file.buffer);
-      const match   = pdfData.text.match(/UNIV-\d+-\d{4}-[A-F0-9]+/i);
-      if (match) cert_number = match[0].toUpperCase();
-    } else {
-      console.error("pdfParse is not available");
-    }
-  } catch (parseErr) {
-    console.error("pdf-parse error:", parseErr.message);
-  }
+ let cert_number = null;
+try {
+  const pdfData = await pdfParse(req.file.buffer);
+  const match = pdfData.text.match(/UNIV-\d+-\d{4}-[A-F0-9]+/i);
 
+  if (match) {
+    cert_number = match[0].toUpperCase();
+  }
+} catch (parseErr) {
+  console.error("pdf-parse error:", parseErr.message);
+}
   if (!cert_number)
     throw new AppError(
       "Could not find a CertifyLB certificate number in this PDF. " +
