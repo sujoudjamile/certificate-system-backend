@@ -250,9 +250,14 @@ certificate_id:     insertResult.insertId,
       console.log(`✅ signed_pdf stored for cert id ${certId}`);
     }
 
-    // Step 5: Commit
-    await connection.commit();
+    // Step 5: Lock the certificate — final step before commit
+    await connection.query(
+      "UPDATE certificates SET status = 'locked' WHERE id = ?",
+      [certId]
+    );
 
+    // Step 6: Commit
+    await connection.commit();
     return res.status(201).json({
       status: "success",
       message: pdfSigned
