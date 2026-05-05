@@ -1,4 +1,5 @@
 // controllers/certificationController.js
+
 const pdfParse = require("pdf-parse");
   console.log("pdfParse type:", typeof pdfParse);
 const db           = require("../config/db");
@@ -10,7 +11,10 @@ const multer       = require("multer");
 const { signWithVault, getVaultPublicKey }          = require("../utils/vaultClient");
 const { signPdf, verifyPdfSignature, buildPdfBuffer } = require("../utils/pdfSigner");
 const logAction = require("../utils/auditLog");
+const { runFraudChecks } = require("../utils/fraudDetector"); // ← ADD THIS LINE
+const sendEmail = require("../utils/sendEmail");
 // ── pdf-parse: safe import that works on Node v24 ──
+
 
 
 /*
@@ -108,7 +112,7 @@ const issueCertificate = asyncHandler(async (req, res) => {
 
   // ── Fetch student ──
   const [studentRows] = await db.query(
-    `SELECT s.id, s.full_name, s.national_id, sr.id AS record_id
+    `SELECT s.id, s.full_name, sr.email, s.national_id, sr.id AS record_id
      FROM students_new s
      JOIN student_records sr ON sr.student_id = s.id
      WHERE s.id = ? AND sr.university_id = ? AND sr.degree = ? AND sr.major = ?
@@ -256,8 +260,70 @@ certificate_id:     insertResult.insertId,
       [certId]
     );
 
-    // Step 6: Commit
+   // Step 6: Commit
     await connection.commit();
+ 
+    // ── Step 7: Run fraud detection (AFTER commit, non-blocking) ──
+    // We run this after the transaction commits so:
+    //   a) The certificate is fully saved before we query it
+    //   b) A crash in fraud detection never rolls back a valid issuance
+    //   c) The student gets their certificate regardless
+    //
+    // runFraudChecks() is designed to never throw — it catches its
+    // own errors internally and just logs them.
+    //
+    // We pass all the data fraud rules need so they don't have to
+    // re-query the database for basic cert information.
+    let fraudSummary = null;
+    try {
+      fraudSummary = await runFraudChecks({
+        cert_id:         certId,
+        created_by:      created_by,
+        student_id:      student_id,
+        university_id:   university_id,
+        national_id:     student.national_id,     // from the student fetch earlier in issueCertificate
+        degree:          degree,
+        major:           major,
+        GPA:             GPA,
+        graduation_date: normGradDate,
+      });
+ 
+      if (fraudSummary.flags_raised > 0) {
+        console.warn(
+          `[FraudDetector] ⚠️  Cert ${cert_number} raised ${fraudSummary.flags_raised} flag(s). ` +
+          `Total risk: ${fraudSummary.total_risk}. Rules: ${fraudSummary.fired_rules.join(", ")}`
+        );
+      }
+    } catch (fraudErr) {
+      // Fraud detection failed — this should never happen because
+      // runFraudChecks() swallows its own errors, but just in case:
+      console.error("[FraudDetector] Unexpected error in runFraudChecks:", fraudErr.message);
+      // We do NOT rethrow — certificate issuance is already complete
+    }
+
+
+    // ── Step 7: Send email to student ──
+try {
+  const studentEmail = student.email; // make sure email exists in your SELECT
+  if (studentEmail && signedPdfBuffer) {
+    await sendEmail({
+      to: studentEmail,
+      subject: `Your Certificate ${cert_number}`,
+      text: `Hello ${student.full_name},\n\nYour certificate has been issued. Please find it attached.`,
+      attachments: [
+        {
+          filename: `certificate_${cert_number}.pdf`,
+          content: signedPdfBuffer,
+        },
+      ],
+    });
+
+    console.log(`📧 Certificate emailed to ${studentEmail}`);
+  }
+} catch (emailErr) {
+  console.error("❌ Email sending failed (non-fatal):", emailErr.message);
+}
+
     return res.status(201).json({
       status: "success",
       message: pdfSigned
@@ -278,6 +344,16 @@ certificate_id:     insertResult.insertId,
         status:           "issued",
         pdf_signed:       pdfSigned,
       },
+
+      // Included so the admin dashboard can immediately show a warning
+      // if fraud rules fired. Does not affect the certificate itself.
+      fraud_check: fraudSummary
+        ? {
+            flags_raised: fraudSummary.flags_raised,
+            total_risk:   fraudSummary.total_risk,
+            fired_rules:  fraudSummary.fired_rules,
+          }
+        : null,
     });
 
   } catch (err) {

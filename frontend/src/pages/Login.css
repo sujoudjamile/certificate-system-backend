@@ -1,246 +1,230 @@
+/* ===== GOOGLE FONTS ===== */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
 body {
   margin: 0;
-  font-family: "Segoe UI", sans-serif;
+  font-family: 'DM Sans', sans-serif;
+  background: linear-gradient(160deg, #0d1a3a 0%, #112150 60%, #0a1428 100%);
+  min-height: 100vh;
 }
 
-.navbar  {
-
+/* ── NAVBAR ── */
+.navbar {
   position: sticky;
   top: 0;
-
-  height: 72px;
-
+  height: 68px;
   display: flex;
   align-items: center;
-
-  padding: 0 30px;
-
-  background: rgba(15, 23, 42, 0.6);
-
-  backdrop-filter: blur(10px);
-
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-
+  padding: 0 36px;
+  background: rgba(8, 18, 42, 0.70);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255,255,255,0.10);
   z-index: 1000;
- 
 }
-
 
 .nav-left {
-
   display: flex;
   align-items: center;
-  gap: 15px;
-
+  gap: 14px;
 }
-
 
 .back-icon {
-
-  color: #94a3b8;
+  color: rgba(255,255,255,0.55);
   cursor: pointer;
-  transition: 0.2s;
-
+  transition: color 0.2s;
 }
-
-.back-icon:hover {
-
-  color: white;
-
-}
-
+.back-icon:hover { color: white; }
 
 .logo-box {
-
-  background: #ff1e1e;
-
+  background: #e8180e;
   padding: 10px;
-
   border-radius: 12px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   color: white;
-
+  box-shadow: 0 4px 14px rgba(232,24,14,0.40);
 }
-
 
 .logo-text {
-
   font-size: 20px;
-  font-weight: 600;
-
+  font-weight: 800;
   color: white;
-
+  letter-spacing: -0.3px;
 }
+
+/* ── LOGIN LAYOUT ── */
 .login-container {
-  height: 100vh;
+  min-height: calc(100vh - 68px);
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: -50px;
-
-  
+  padding: 40px 20px;
 }
 
 .login-card {
-  width: 500px;
-  padding: 40px;
-  border-radius: 16px;
-
-  
-  backdrop-filter: blur(10px);
-
-  
+  width: 520px;
+  max-width: 100%;
+  padding: 44px 40px;
+  border-radius: 22px;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.11);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.45);
 }
 
+/* ── TITLES ── */
 .Ltitle {
   text-align: center;
-  font-size: xxx-large;
+  font-size: 34px;
+  font-weight: 900;
   color: white;
-  margin-bottom: 5px;
+  margin: 0 0 6px;
+  letter-spacing: -0.8px;
 }
 
 .subtitle {
   text-align: center;
-  color: #9aa4c7;
-  margin-bottom: 30px;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 28px;
+  font-size: 15px;
 }
 
-/* Role selector */
-
+/* ── ROLE SELECTOR ── */
 .role-selector {
   display: flex;
   justify-content: space-between;
   background: rgba(255,255,255,0.05);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 5px;
   margin-bottom: 20px;
-  border: 1px solid rgba(255,255,255,0.1);;
+  border: 1px solid rgba(255,255,255,0.10);
+  gap: 4px;
 }
 
 .role-btn {
   flex: 1;
-  padding: 12px;
+  padding: 11px 8px;
   border: none;
   background: transparent;
-  color: #9aa4c7;
+  color: rgba(255,255,255,0.55);
   border-radius: 10px;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.22s;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.role-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.8);
 }
 
 .role-btn.active {
-  background: #ff1e1e;
+  background: #e8180e;
   color: white;
+  box-shadow: 0 3px 12px rgba(232,24,14,0.40);
 }
 
-/* Role info */
-
+/* ── ROLE INFO BOX ── */
 .role-info {
   display: flex;
   align-items: center;
-  gap: 15px;
-
-  padding: 15px;
-  border-radius: 12px;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
   background: rgba(255,255,255,0.05);
-
-  margin-bottom: 20px;
-  border: 1px solid rgba(255,255,255,0.1);;
+  margin-bottom: 22px;
+  border: 1px solid rgba(255,255,255,0.09);
 }
 
-.role-icon {
-  font-size: 24px;
-}
+.role-icon    { font-size: 24px; }
+.role-title   { color: white; font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+.role-desc    { color: rgba(255,255,255,0.52); font-size: 13px; }
+.role-main-icon { color: #e8180e; }
 
-.role-title {
-  color: white;
-  font-weight: bold;
-}
-
-.role-desc {
-  color: #9aa4c7;
-  font-size: 14px;
-  
-}
-
-/* Inputs */
-
+/* ── LABELS & INPUTS ── */
 .label {
   display: block;
-  margin-bottom: 6px;
-  margin-top: 10px;
-  color: #c3cbe8;
+  margin-bottom: 7px;
+  margin-top: 14px;
+  color: rgba(255,255,255,0.75);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .input {
   width: 100%;
-  padding: 14px;
-  border-radius: 10px;
-  border: none;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
   outline: none;
-
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.07);
   color: white;
-
-  margin-bottom: 10px;
-  border: 1px solid rgba(255,255,255,0.1);;
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  margin-bottom: 4px;
+  transition: border-color 0.2s, background 0.2s;
+  box-sizing: border-box;
 }
 
+.input:focus {
+  border-color: rgba(232,24,14,0.6);
+  background: rgba(255,255,255,0.09);
+}
+
+.input::placeholder { color: rgba(255,255,255,0.30); }
+
+/* ── PASSWORD ── */
 .password-container {
   position: relative;
-  
 }
 
 .eye {
   position: absolute;
   right: 15px;
-  top: 13px;
-  color: #aaa;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,0.40);
   cursor: pointer;
+  transition: color 0.2s;
 }
+.eye:hover { color: rgba(255,255,255,0.75); }
 
-/* Button */
-
-.role-btn {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  background: transparent;
-  color: #9aa4c7;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: 0.3s;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.role-main-icon {
-  color: #ff3b3b;
-}
-
+/* ── LOGIN BUTTON ── */
 .login-btn {
   width: 100%;
-  margin-top: 20px;
-
+  margin-top: 22px;
   padding: 16px;
   border: none;
-  border-radius: 12px;
-
-  background: #ff1e1e;
+  border-radius: 14px;
+  background: #e8180e;
   color: white;
   font-size: 16px;
-
+  font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
   cursor: pointer;
-
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 18px rgba(232,24,14,0.38);
+  transition: all 0.22s;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: #ff3b30;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(232,24,14,0.52);
+}
+
+.login-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }

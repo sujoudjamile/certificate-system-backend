@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import {
   LogOut, Download, ShieldCheck, QrCode, FileText, X,
   ChevronDown, ChevronUp, GraduationCap, BookOpen, Calendar,
-  Mail, Phone, Pencil, Lock,
+  Mail, Phone, Pencil, Lock, User,
 } from "lucide-react";
 
 
@@ -317,9 +317,17 @@ export default function Staff() {
 
       {/* HEADER */}
       <div className="header">
-        <div>
-          <h1>Staff Portal</h1>
-          <p>{staff ? `${staff.name} · ${staff.university_name}` : "Loading…"}</p>
+        <div className="header-info">
+          <div className="header-name-row">
+            <User size={20} color="rgba(255,255,255,0.55)" />
+            <h1>
+              {staff ? staff.name : "Staff Portal"}
+            </h1>
+          </div>
+          <div className="header-uni-row">
+            <GraduationCap size={16} color="#60b0ff" />
+            <span>{staff ? staff.university_name : "Loading…"}</span>
+          </div>
         </div>
         <button className="uni-nav__signout"
           onClick={() => { localStorage.removeItem("token"); navigate("/login"); }}>

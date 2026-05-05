@@ -6,22 +6,18 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-
 const userRoutes = require("./routes/userRoutes");
 const universityRoutes = require("./routes/universityRoutes");
 const staffRoutes = require("./routes/staffRoutes");
 const studentRoutes = require("./routes/studentRoutes");
-
-const fraudRoutes = require("./routes/fraudRoutes");
 const auditRoutes       = require("./routes/auditRouts");
 const certificateRoutes = require("./routes/certificationRoutes");
-
-
+const fraudRoutes = require("./routes/fraudRoutes");
 const { startCertRenewalScheduler } = require("./utils/certRenewal");
-
 const errorHandler = require("./middleware/errorHandler");
-
 const app = express();
+
+
 
 /*
 ==================================
@@ -37,6 +33,9 @@ app.use(cors());
 
 // Allow server to read JSON body
 app.use(express.json());
+
+
+ 
 
 /*
 ==================================
