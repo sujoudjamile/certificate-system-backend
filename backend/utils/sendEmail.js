@@ -22,12 +22,16 @@ SEND EMAIL
 ==================================
 Reusable helper for sending HTML emails
 */
-const sendEmail = async ({ to, subject, html }) => {
+const sendEmail = async ({ to, subject, html,  text, attachments }) => {
   return transporter.sendMail({
     from: `"CertifyLB" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
+    text,
+
+    // ✅ ensures attachments never crash if undefined
+    attachments: attachments || [],
   });
 };
 
