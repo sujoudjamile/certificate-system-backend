@@ -104,6 +104,22 @@ const issueCertificate = asyncHandler(async (req, res) => {
   if (!student_id || !degree || !major || !graduation_date)
     throw new AppError("student_id, degree, major, and graduation_date are required", 400);
 
+
+  if (!student_id || !degree || !major || !graduation_date)
+    throw new AppError("student_id, degree, major, and graduation_date are required", 400);
+  // ── GPA validation ──
+  if (GPA !== undefined && GPA !== null && GPA !== "") {
+  const gpaNum = parseFloat(GPA);
+  if (isNaN(gpaNum))
+    throw new AppError("GPA must be a valid number", 400);
+  if (gpaNum < 2.0)
+    throw new AppError("GPA must be at least 2.0 — student has not met the minimum passing grade", 400);
+  if (gpaNum > 4.0)
+    throw new AppError("GPA cannot exceed 4.0 — maximum GPA is 4.0", 400);
+}
+
+
+
   const university_id = req.user.university_id;
   const created_by    = req.user.id;
 

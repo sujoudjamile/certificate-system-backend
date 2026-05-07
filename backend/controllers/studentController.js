@@ -1,4 +1,6 @@
-const db = require("../config/db");
+// controllers/studentController.js
+
+const db        = require("../config/db");
 const logAction = require("../utils/auditLog");
 
 /*
@@ -11,93 +13,152 @@ const lebanonPhoneRegex = /^(?:3|70|71|76|78|79|81|82|83|84|85|86|87|88|89)\d{6}
 const nationalIdRegex   = /^\d{6,12}$/;
 const studentIdRegex    = /^\d{8}$/;
 const fullNameRegex     = /^[A-Za-z]+(?:\s[A-Za-z]+)+$/;
-const allowedDegrees    = ["Bachelor", "Master", "PhD"];
 
 // Rejects future dates and calculates age
 const parseAge = (dob) => {
   const birth = new Date(dob);
   const today = new Date();
-  if (birth >= today) return NaN; // future date
+  if (birth >= today) return NaN;
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return age;
 };
 
-// Capitalizes each word in a name
+// Capitalises each word in a name
 const formatName = (name) =>
   name.trim().split(" ")
     .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
 
-// Capitalizes first letter of major
-const formatMajor = (major) => {
-  major = major.trim().toLowerCase();
-  return major.charAt(0).toUpperCase() + major.slice(1);
+/*
+==================================
+HELPER — VALIDATE PROGRAM EXISTS
+==================================
+Checks that the requested degree + major combination is
+active for the given university in university_programs.
+
+Returns the degree's level ("undergraduate", "graduate",
+"doctoral", "professional") on success, or an error string.
+*/
+const validateProgramExists = async (university_id, degree, major) => {
+  const [rows] = await db.query(
+    `SELECT d.level
+     FROM university_programs up
+     JOIN majors  m ON up.major_id  = m.id
+     JOIN degrees d ON up.degree_id = d.id
+     WHERE up.university_id = ?
+       AND m.name  = ?
+       AND d.name  = ?
+       AND up.is_active = 1
+     LIMIT 1`,
+    [university_id, major, degree]
+  );
+
+  if (rows.length === 0) {
+    return {
+      error: `The program "${degree} in ${major}" is not offered by your university. ` +
+             `Ask your admin to add it under Programs Management.`,
+    };
+  }
+
+  return { level: rows[0].level };
 };
 
 /*
 ==================================
-SHARED HELPER — DEGREE FLOW VALIDATION
+HELPER — DEGREE FLOW VALIDATION
 ==================================
-Checks that the degree progression is valid
-globally across ALL universities.
+Uses the degrees.level column to enforce the prerequisite
+chain globally across ALL universities:
 
-- Master requires a Bachelor somewhere
-- PhD requires a Master somewhere
-- Also checks major consistency between degrees
+  undergraduate → no prerequisite
+  graduate      → needs at least one undergraduate record
+  doctoral      → needs at least one graduate record
+  professional  → standalone (PharmD, MD, DDS, JD, DNP …)
 
-Pass excludeRecordId when editing so the current
-record is not counted against itself.
+Also enforces major consistency:
+  graduate  → major must match one of the student's undergraduate majors
+  doctoral  → major must match one of the student's graduate majors
+
+Pass excludeRecordId when editing so the current record
+is not counted against itself.
 */
 const validateDegreeFlow = async (studentId, degree, major, excludeRecordId = null) => {
-  let query = "SELECT degree, major FROM student_records WHERE student_id = ?";
-  const params = [studentId];
 
+  // ── 1. Get the level of the requested degree ──
+  const [degreeRows] = await db.query(
+    "SELECT level FROM degrees WHERE name = ?",
+    [degree]
+  );
+
+  // If the degree isn't in the DB yet (migration edge case) fall back to safe defaults
+  const requestedLevel = degreeRows.length > 0 ? degreeRows[0].level : "undergraduate";
+
+  // Professional and undergraduate degrees have no prerequisites
+  if (requestedLevel === "professional" || requestedLevel === "undergraduate") {
+    return null;
+  }
+
+  // ── 2. Fetch all existing records for this student ──
+  const params = [studentId];
+  let query = `
+    SELECT sr.degree, sr.major,
+           COALESCE(d.level, 'undergraduate') AS degree_level
+    FROM student_records sr
+    LEFT JOIN degrees d ON d.name = sr.degree
+    WHERE sr.student_id = ?
+  `;
   if (excludeRecordId) {
-    query += " AND id != ?";
+    query += " AND sr.id != ?";
     params.push(excludeRecordId);
   }
-
   const [allRecords] = await db.query(query, params);
 
-  const hasBachelor = allRecords.some(r => r.degree === "Bachelor");
-  const hasMaster   = allRecords.some(r => r.degree === "Master");
+  const hasUndergrad = allRecords.some(r => r.degree_level === "undergraduate");
+  const hasGrad      = allRecords.some(r => r.degree_level === "graduate");
 
-  if (degree === "Master" && !hasBachelor) {
-    return "Student must have a Bachelor degree before enrolling in a Master program";
+  // ── 3. Prerequisite check ──
+  if (requestedLevel === "graduate" && !hasUndergrad) {
+    return `Student must complete an undergraduate degree before enrolling in a ${degree} program.`;
   }
 
-  if (degree === "PhD" && !hasMaster) {
-    return "Student must have a Master degree before enrolling in a PhD program";
+  if (requestedLevel === "doctoral" && !hasGrad) {
+    return `Student must complete a graduate degree before enrolling in a ${degree} program.`;
   }
 
-  const bachelorMajors = allRecords.filter(r => r.degree === "Bachelor").map(r => r.major);
-  const masterMajors   = allRecords.filter(r => r.degree === "Master").map(r => r.major);
+  // ── 4. Major consistency ──
+  if (requestedLevel === "graduate" && hasUndergrad) {
+    const undergradMajors = allRecords
+      .filter(r => r.degree_level === "undergraduate")
+      .map(r => r.major);
 
-  if (degree === "Master" && bachelorMajors.length > 0) {
-    if (!bachelorMajors.includes(major)) {
-      return "Master major must match at least one of the student's Bachelor majors";
+    if (undergradMajors.length > 0 && !undergradMajors.includes(major)) {
+      return `${degree} major must match one of the student's undergraduate degree majors ` +
+             `(${undergradMajors.join(", ")}).`;
     }
   }
 
-  if (degree === "PhD" && masterMajors.length > 0) {
-    if (!masterMajors.includes(major)) {
-      return "PhD major must match at least one of the student's Master majors";
+  if (requestedLevel === "doctoral" && hasGrad) {
+    const gradMajors = allRecords
+      .filter(r => r.degree_level === "graduate")
+      .map(r => r.major);
+
+    if (gradMajors.length > 0 && !gradMajors.includes(major)) {
+      return `${degree} major must match one of the student's graduate degree majors ` +
+             `(${gradMajors.join(", ")}).`;
     }
   }
 
-  return null; // no error
+  return null; // all good
 };
 
 /*
 ==================================
-SHARED HELPER — CERTIFICATE LOCK CHECK
+HELPER — CERTIFICATE LOCK CHECK
 ==================================
-Returns true if the student record has
-any issued (non-revoked) certificates.
-Once a certificate is issued, the record
-is locked — no edits or deletions allowed.
+Returns true if the student record has any certificates
+(issued or revoked). Once issued, the record is locked.
 */
 const hasCertificates = async (record_id) => {
   const [certs] = await db.query(
@@ -107,11 +168,18 @@ const hasCertificates = async (record_id) => {
   return certs.length > 0;
 };
 
-
 /*
 ==================================
 ADD STUDENT
 ==================================
+Staff adds a student to their university.
+
+Changes from old version:
+  • degree is no longer validated against a hardcoded array.
+    It is validated against university_programs (DB).
+  • major is no longer free-text. It must exactly match a
+    major name that the university has activated.
+  • validateDegreeFlow is now DB-driven (uses degrees.level).
 */
 const addStudent = async (req, res) => {
   try {
@@ -123,79 +191,89 @@ const addStudent = async (req, res) => {
       national_id,
       date_of_birth,
       degree,
-      major
+      major,
     } = req.body;
 
     const university_id = req.user.university_id;
     const created_by    = req.user.id;
 
-    // ================================
-    // STEP 1 — UNIVERSITY GUARD
-    // ================================
+    // ── STEP 1 — University guard ──
     if (!university_id) {
-      return res.status(403).json({ message: "Your account is not linked to any university" });
-    }
-
-    // ================================
-    // STEP 1B — ROLE GUARD (staff only)
-    // ================================
-    if (req.user.role !== "staff") {
       return res.status(403).json({
-        message: "Only staff members can add student records."
+        message: "Your account is not linked to any university.",
       });
     }
 
-    // ================================
-    // STEP 2 — REQUIRED FIELDS
-    // ================================
-    const required = { national_id, full_name, date_of_birth, student_id, email, phone, major, degree };
-    const missing  = Object.entries(required).filter(([, v]) => v === undefined || v === null || String(v).trim() === "");
-    if (missing.length > 0) {
-      return res.status(400).json({ message: "All fields are required" });
+    // ── STEP 1B — Role guard (staff only) ──
+    if (req.user.role !== "staff") {
+      return res.status(403).json({
+        message: "Only staff members can add student records.",
+      });
     }
 
-    // ================================
-    // STEP 3 — FORMAT & VALIDATE
-    // ================================
+    // ── STEP 2 — Required fields ──
+    const required = {
+      national_id, full_name, date_of_birth,
+      student_id, email, phone, major, degree,
+    };
+    const missing = Object.entries(required)
+      .filter(([, v]) => v === undefined || v === null || String(v).trim() === "");
+    if (missing.length > 0) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
+
+    // ── STEP 3 — Format & validate personal fields ──
     full_name = formatName(full_name);
     if (!fullNameRegex.test(full_name)) {
-      return res.status(400).json({ message: "Full name must contain first name and family name" });
+      return res.status(400).json({
+        message: "Full name must contain a first name and a family name.",
+      });
     }
 
     national_id = national_id.trim();
     if (!nationalIdRegex.test(national_id)) {
-      return res.status(400).json({ message: "National ID must be 6–12 digits" });
+      return res.status(400).json({ message: "National ID must be 6–12 digits." });
     }
 
     student_id = student_id.trim();
     if (!studentIdRegex.test(student_id)) {
-      return res.status(400).json({ message: "Student ID must be exactly 8 digits" });
+      return res.status(400).json({
+        message: "Student ID must be exactly 8 digits.",
+      });
     }
 
     email = email.trim().toLowerCase();
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Invalid email format" });
+      return res.status(400).json({ message: "Invalid email format." });
     }
 
     phone = phone.trim();
     if (!lebanonPhoneRegex.test(phone)) {
-      return res.status(400).json({ message: "Invalid Lebanese phone number" });
+      return res.status(400).json({
+        message: "Invalid Lebanese phone number.",
+      });
     }
 
     const age = parseAge(date_of_birth);
-    if (isNaN(age)) return res.status(400).json({ message: "Invalid date of birth" });
-    if (age < 17 || age > 100) return res.status(400).json({ message: "Wrong date of birth" });
-
-    degree = degree.trim();
-    if (!allowedDegrees.includes(degree)) {
-      return res.status(400).json({ message: "Degree must be Bachelor, Master, or PhD" });
+    if (isNaN(age)) {
+      return res.status(400).json({ message: "Invalid date of birth." });
+    }
+    if (age < 17 || age > 100) {
+      return res.status(400).json({ message: "Wrong date of birth." });
     }
 
-    major = formatMajor(major);
+    degree = degree.trim();
+    major  = major.trim();
 
-    // ================================
-    // STEP 4 — CHECK OR CREATE STUDENT
-    // ================================
+    // ── STEP 4 — Validate program against university_programs ──
+    // This replaces the old hardcoded allowedDegrees check.
+    // The degree AND major must both be active for this university.
+    const programCheck = await validateProgramExists(university_id, degree, major);
+    if (programCheck.error) {
+      return res.status(400).json({ message: programCheck.error });
+    }
+
+    // ── STEP 5 — Check or create student record in students_new ──
     const [existingStudent] = await db.query(
       "SELECT * FROM students_new WHERE national_id = ?",
       [national_id]
@@ -212,24 +290,19 @@ const addStudent = async (req, res) => {
       studentId = newStudent.insertId;
     }
 
-    // ================================
-    // STEP 5 — DEGREE FLOW VALIDATION
-    // ================================
+    // ── STEP 6 — Degree flow validation (DB-driven) ──
     const degreeError = await validateDegreeFlow(studentId, degree, major);
     if (degreeError) {
       return res.status(400).json({ message: degreeError });
     }
 
-    // ================================
-    // STEP 6 — PREVENT DUPLICATE DEGREE
-    // ================================
+    // ── STEP 7 — Prevent duplicate degree+major at any university ──
     const [existing] = await db.query(
       `SELECT id, university_id, degree, major
        FROM student_records
        WHERE student_id = ? AND degree = ? AND major = ?`,
       [studentId, degree, major]
     );
-
     if (existing.length > 0) {
       return res.status(400).json({
         message: "This student already has this degree and major registered.",
@@ -237,13 +310,11 @@ const addStudent = async (req, res) => {
           university_id: existing[0].university_id,
           degree:        existing[0].degree,
           major:         existing[0].major,
-        }
+        },
       });
     }
 
-    // ================================
-    // STEP 7 — INSERT RECORD
-    // ================================
+    // ── STEP 8 — Insert student_record ──
     await db.query(
       `INSERT INTO student_records
        (student_id, university_id, created_by, student_code, email, phone, degree, major)
@@ -253,7 +324,7 @@ const addStudent = async (req, res) => {
 
     await logAction({
       user_id:       created_by,
-      university_id: university_id,
+      university_id,
       action:        "ADD_STUDENT",
       description:   `Added student ${full_name} (${degree} - ${major})`,
       status:        "success",
@@ -262,7 +333,7 @@ const addStudent = async (req, res) => {
       ip_address:    req.ip,
     });
 
-    res.status(201).json({ message: "Student added successfully" });
+    res.status(201).json({ message: "Student added successfully." });
 
   } catch (error) {
     console.error("ADD STUDENT ERROR:", error);
@@ -270,7 +341,9 @@ const addStudent = async (req, res) => {
     if (error.code === "ER_DUP_ENTRY") {
       if (error.sqlMessage?.includes("unique_student_per_uni")) {
         return res.status(400).json({
-          message: "This student code is already registered at your university. Use a different student code.",
+          message:
+            "This student code is already registered at your university. " +
+            "Use a different student code.",
         });
       }
       if (error.sqlMessage?.includes("unique_email_per_uni")) {
@@ -287,40 +360,40 @@ const addStudent = async (req, res) => {
   }
 };
 
-
 /*
 ==================================
 GET STUDENTS
 ==================================
-Returns all students enrolled at the
-logged-in user's university.
+Returns all students enrolled at the logged-in user's university.
 */
 const getStudents = async (req, res) => {
   try {
     const university_id = req.user.university_id;
 
     if (!university_id) {
-      return res.status(403).json({ message: "Your account is not linked to any university" });
+      return res.status(403).json({
+        message: "Your account is not linked to any university.",
+      });
     }
 
     const [rows] = await db.query(
       `SELECT
-        sr.id          AS record_id,
-        sn.id,
-        sn.full_name,
-        sr.university_id,
-        sn.national_id,
-        DATE_FORMAT(sn.date_of_birth, '%Y-%m-%d') AS date_of_birth,
-        sr.student_code,
-        sr.email,
-        sr.phone,
-        sr.degree,
-        sr.major,
-        sr.created_at  AS enrolled_at
-      FROM students_new sn
-      JOIN student_records sr ON sr.student_id = sn.id
-      WHERE sr.university_id = ?
-      ORDER BY sn.full_name ASC, sr.created_at ASC`,
+         sr.id          AS record_id,
+         sn.id,
+         sn.full_name,
+         sr.university_id,
+         sn.national_id,
+         DATE_FORMAT(sn.date_of_birth, '%Y-%m-%d') AS date_of_birth,
+         sr.student_code,
+         sr.email,
+         sr.phone,
+         sr.degree,
+         sr.major,
+         sr.created_at  AS enrolled_at
+       FROM students_new sn
+       JOIN student_records sr ON sr.student_id = sn.id
+       WHERE sr.university_id = ?
+       ORDER BY sn.full_name ASC, sr.created_at ASC`,
       [university_id]
     );
 
@@ -330,7 +403,6 @@ const getStudents = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 /*
 ==================================
@@ -347,11 +419,15 @@ const getStudentByNationalId = async (req, res) => {
     const university_id   = req.user.university_id;
 
     if (!university_id) {
-      return res.status(403).json({ message: "Your account is not linked to any university" });
+      return res.status(403).json({
+        message: "Your account is not linked to any university.",
+      });
     }
 
     const [studentRows] = await db.query(
-      "SELECT id, full_name, national_id, DATE_FORMAT(date_of_birth, '%Y-%m-%d') AS date_of_birth FROM students_new WHERE national_id = ?",
+      `SELECT id, full_name, national_id,
+              DATE_FORMAT(date_of_birth, '%Y-%m-%d') AS date_of_birth
+       FROM students_new WHERE national_id = ?`,
       [national_id]
     );
 
@@ -384,110 +460,111 @@ const getStudentByNationalId = async (req, res) => {
   }
 };
 
-
 /*
 ==================================
 UPDATE STUDENT RECORD
 ==================================
-Staff and admin can update:
+Staff can update:
   student_records → email, phone, student_code, degree, major
   students_new    → full_name, date_of_birth
 
-Rules:
+Rules (unchanged):
   - national_id is NEVER editable
-  - If the record has issued certificates → fully locked, no edits allowed
-  - Degree changes follow the global Bachelor → Master → PhD flow
+  - If the record has issued certificates → fully locked
+  - Degree changes follow the global flow (DB-driven)
   - Only records belonging to the user's university can be edited
+
+NEW rule:
+  - If degree or major changes, the new combination must exist
+    in university_programs for this university.
 */
 const updateStudent = async (req, res) => {
   try {
     const { record_id } = req.params;
     const university_id = req.user.university_id;
 
-    // ================================
-    // STEP 1 — UNIVERSITY GUARD
-    // ================================
+    // ── STEP 1 — University guard ──
     if (!university_id) {
-      return res.status(403).json({ message: "Your account is not linked to any university" });
+      return res.status(403).json({
+        message: "Your account is not linked to any university.",
+      });
     }
 
-    // ================================
-    // STEP 1B — ROLE GUARD (staff only)
-    // ================================
+    // ── STEP 1B — Role guard (staff only) ──
     if (req.user.role !== "staff") {
       return res.status(403).json({
-        message: "Only staff members can edit student records."
+        message: "Only staff members can edit student records.",
       });
     }
 
-    let { email, phone, student_code, degree, major, full_name, date_of_birth } = req.body;
+    let {
+      email, phone, student_code,
+      degree, major,
+      full_name, date_of_birth,
+    } = req.body;
 
-    // ================================
-    // STEP 2 — AT LEAST ONE FIELD
-    // ================================
-    if (!email && !phone && !student_code && !degree && !major && !full_name && !date_of_birth) {
-      return res.status(400).json({ message: "Provide at least one field to update" });
+    // ── STEP 2 — At least one field required ──
+    if (!email && !phone && !student_code && !degree && !major &&
+        !full_name && !date_of_birth) {
+      return res.status(400).json({
+        message: "Provide at least one field to update.",
+      });
     }
 
-    // ================================
-    // STEP 3 — VERIFY RECORD OWNERSHIP
-    // ================================
+    // ── STEP 3 — Verify record ownership ──
     const [recordRows] = await db.query(
-      "SELECT id, student_id FROM student_records WHERE id = ? AND university_id = ?",
+      "SELECT id, student_id, degree, major FROM student_records WHERE id = ? AND university_id = ?",
       [record_id, university_id]
     );
-
     if (recordRows.length === 0) {
       return res.status(404).json({
-        message: "Student record not found or does not belong to your university"
+        message: "Student record not found or does not belong to your university.",
       });
     }
 
-    const studentId = recordRows[0].student_id;
+    const { student_id: studentId, degree: currentDegree, major: currentMajor } = recordRows[0];
 
-    // ================================
-    // STEP 4 — CERTIFICATE LOCK
-    // Nobody can edit a student record once certificates
-    // have been issued — prevents data falsification.
-    // Admin can only revoke certificates, not edit student data.
-    // ================================
+    // ── STEP 4 — Certificate lock ──
     const locked = await hasCertificates(record_id);
     if (locked) {
       return res.status(400).json({
-        message: "This student record is locked because certificates have been issued. No edits are allowed to prevent falsification."
+        message:
+          "This student record is locked because certificates have been issued. " +
+          "No edits are allowed to prevent falsification.",
       });
     }
 
-    // ================================
-    // STEP 5 — DEGREE FLOW VALIDATION
-    // ================================
-    if (degree) {
-      degree = degree.trim();
-      if (!allowedDegrees.includes(degree)) {
-        return res.status(400).json({ message: "Degree must be Bachelor, Master, or PhD" });
+    // ── STEP 5 — If degree or major is changing, validate the new program ──
+    const newDegree = degree ? degree.trim() : currentDegree;
+    const newMajor  = major  ? major.trim()  : currentMajor;
+
+    const programChanged = (degree && degree.trim() !== currentDegree) ||
+                           (major  && major.trim()  !== currentMajor);
+
+    if (programChanged) {
+      // Validate new combo against university_programs
+      const programCheck = await validateProgramExists(university_id, newDegree, newMajor);
+      if (programCheck.error) {
+        return res.status(400).json({ message: programCheck.error });
       }
 
-      // Use current major if major is not being updated
-      let majorToCheck = major ? formatMajor(major) : null;
-
-      if (majorToCheck) {
-        const degreeError = await validateDegreeFlow(studentId, degree, majorToCheck, record_id);
-        if (degreeError) {
-          return res.status(400).json({ message: degreeError });
-        }
+      // Validate degree flow with the new values
+      const degreeError = await validateDegreeFlow(
+        studentId, newDegree, newMajor, record_id
+      );
+      if (degreeError) {
+        return res.status(400).json({ message: degreeError });
       }
     }
 
-    // ================================
-    // STEP 6 — UPDATE student_records
-    // ================================
+    // ── STEP 6 — Update student_records ──
     const recordUpdates = [];
     const recordValues  = [];
 
     if (email) {
       email = email.trim().toLowerCase();
       if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: "Invalid email format" });
+        return res.status(400).json({ message: "Invalid email format." });
       }
       recordUpdates.push("email = ?");
       recordValues.push(email);
@@ -496,7 +573,9 @@ const updateStudent = async (req, res) => {
     if (phone) {
       phone = phone.trim();
       if (!lebanonPhoneRegex.test(phone)) {
-        return res.status(400).json({ message: "Invalid Lebanese phone number" });
+        return res.status(400).json({
+          message: "Invalid Lebanese phone number.",
+        });
       }
       recordUpdates.push("phone = ?");
       recordValues.push(phone);
@@ -505,7 +584,9 @@ const updateStudent = async (req, res) => {
     if (student_code) {
       student_code = student_code.trim();
       if (!studentIdRegex.test(student_code)) {
-        return res.status(400).json({ message: "Student code must be exactly 8 digits" });
+        return res.status(400).json({
+          message: "Student code must be exactly 8 digits.",
+        });
       }
       recordUpdates.push("student_code = ?");
       recordValues.push(student_code);
@@ -513,13 +594,12 @@ const updateStudent = async (req, res) => {
 
     if (degree) {
       recordUpdates.push("degree = ?");
-      recordValues.push(degree);
+      recordValues.push(degree.trim());
     }
 
     if (major) {
-      major = formatMajor(major);
       recordUpdates.push("major = ?");
-      recordValues.push(major);
+      recordValues.push(major.trim());
     }
 
     if (recordUpdates.length > 0) {
@@ -530,16 +610,16 @@ const updateStudent = async (req, res) => {
       );
     }
 
-    // ================================
-    // STEP 7 — UPDATE students_new
-    // ================================
+    // ── STEP 7 — Update students_new ──
     const identityUpdates = [];
     const identityValues  = [];
 
     if (full_name) {
       full_name = formatName(full_name);
       if (!fullNameRegex.test(full_name)) {
-        return res.status(400).json({ message: "Full name must contain first name and family name" });
+        return res.status(400).json({
+          message: "Full name must contain a first name and a family name.",
+        });
       }
       identityUpdates.push("full_name = ?");
       identityValues.push(full_name);
@@ -547,8 +627,12 @@ const updateStudent = async (req, res) => {
 
     if (date_of_birth) {
       const age = parseAge(date_of_birth);
-      if (isNaN(age)) return res.status(400).json({ message: "Invalid date of birth" });
-      if (age < 17 || age > 100) return res.status(400).json({ message: "Wrong date of birth" });
+      if (isNaN(age)) {
+        return res.status(400).json({ message: "Invalid date of birth." });
+      }
+      if (age < 17 || age > 100) {
+        return res.status(400).json({ message: "Wrong date of birth." });
+      }
       identityUpdates.push("date_of_birth = DATE(?)");
       identityValues.push(date_of_birth);
     }
@@ -563,7 +647,7 @@ const updateStudent = async (req, res) => {
 
     await logAction({
       user_id:       req.user.id,
-      university_id: university_id,
+      university_id,
       action:        "UPDATE_STUDENT",
       description:   `Updated student record ID ${record_id}`,
       status:        "success",
@@ -572,17 +656,21 @@ const updateStudent = async (req, res) => {
       ip_address:    req.ip,
     });
 
-    res.json({ status: "success", message: "Student record updated successfully" });
+    res.json({ status: "success", message: "Student record updated successfully." });
 
   } catch (error) {
     console.error("UPDATE STUDENT ERROR:", error);
 
     if (error.code === "ER_DUP_ENTRY") {
       if (error.sqlMessage?.includes("unique_email_per_uni")) {
-        return res.status(400).json({ message: "This email is already registered at your university." });
+        return res.status(400).json({
+          message: "This email is already registered at your university.",
+        });
       }
       if (error.sqlMessage?.includes("unique_student_per_uni")) {
-        return res.status(400).json({ message: "This student code is already registered at your university." });
+        return res.status(400).json({
+          message: "This student code is already registered at your university.",
+        });
       }
     }
 
@@ -590,6 +678,9 @@ const updateStudent = async (req, res) => {
   }
 };
 
-
-
-module.exports = { addStudent, getStudents, getStudentByNationalId, updateStudent };
+module.exports = {
+  addStudent,
+  getStudents,
+  getStudentByNationalId,
+  updateStudent,
+};

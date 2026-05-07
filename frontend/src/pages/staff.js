@@ -6,10 +6,8 @@ import { useNavigate } from "react-router-dom";
 import {
   LogOut, Download, ShieldCheck, QrCode, FileText, X,
   ChevronDown, ChevronUp, GraduationCap, BookOpen, Calendar,
-  Mail, Phone, Pencil, Lock, User,
+  Mail, Phone, Pencil, Lock, User, Search,
 } from "lucide-react";
-
-
 
 const API = "http://localhost:5000/api";
 const authHeader = () => ({
@@ -17,11 +15,16 @@ const authHeader = () => ({
 });
 
 const DEGREE_COLOR = {
-  Bachelor: { bg: "rgba(99,102,241,0.12)",  border: "rgba(99,102,241,0.3)",  text: "#818cf8" },
-  Master:   { bg: "rgba(236,72,153,0.12)",  border: "rgba(236,72,153,0.3)",  text: "#f472b6" },
-  PhD:      { bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.3)",  text: "#fbbf24" },
+  Bachelor:  { bg: "rgba(99,102,241,0.12)",  border: "rgba(99,102,241,0.3)",  text: "#818cf8" },
+  Master:    { bg: "rgba(236,72,153,0.12)",  border: "rgba(236,72,153,0.3)",  text: "#f472b6" },
+  PhD:       { bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.3)",  text: "#fbbf24" },
+  PharmD:    { bg: "rgba(20,184,166,0.12)",  border: "rgba(20,184,166,0.3)",  text: "#2dd4bf" },
+  MD:        { bg: "rgba(239,68,68,0.12)",   border: "rgba(239,68,68,0.3)",   text: "#f87171" },
+  JD:        { bg: "rgba(168,85,247,0.12)",  border: "rgba(168,85,247,0.3)",  text: "#c084fc" },
+  LLB:       { bg: "rgba(59,130,246,0.12)",  border: "rgba(59,130,246,0.3)",  text: "#60a5fa" },
+  MBA:       { bg: "rgba(34,197,94,0.12)",   border: "rgba(34,197,94,0.3)",   text: "#4ade80" },
+  DDS:       { bg: "rgba(251,146,60,0.12)",  border: "rgba(251,146,60,0.3)",  text: "#fb923c" },
 };
-
 
 const formatDate = (raw) => {
   if (!raw) return "—";
@@ -32,6 +35,273 @@ const formatDate = (raw) => {
   return `${String(d).padStart(2,"0")} ${months[m-1]} ${y}`;
 };
 
+// ─────────────────────────────────────────────────────────
+// SEARCHABLE DROPDOWN COMPONENT
+// Props:
+//   options     – [{ value, label, group? }]
+//   value       – currently selected value
+//   onChange    – (value) => void
+//   placeholder – string shown when nothing selected
+//   disabled    – boolean
+//   emptyMsg    – string shown when list is empty
+//   dropUp      – boolean: if true the panel opens ABOVE the trigger
+//   size        – "sm" | "md" (default "md") controls trigger height
+// ─────────────────────────────────────────────────────────
+function SearchableDropdown({
+  options,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  emptyMsg  = "No options available",
+  dropUp    = false,
+  size      = "md",
+}) {
+  const [open,  setOpen]  = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Reset query when closed
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
+
+  const selected = options.find(o => o.value === value);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return options;
+    return options.filter(o => o.label.toLowerCase().includes(q));
+  }, [options, query]);
+
+  // Group items if they have a 'group' property
+  const grouped = useMemo(() => {
+    const hasGroups = filtered.some(o => o.group);
+    if (!hasGroups) return [{ group: null, items: filtered }];
+    const map = {};
+    filtered.forEach(o => {
+      const g = o.group || "Other";
+      if (!map[g]) map[g] = [];
+      map[g].push(o);
+    });
+    return Object.entries(map).map(([group, items]) => ({ group, items }));
+  }, [filtered]);
+
+  const handleSelect = (val) => {
+    onChange(val);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const paddingV = size === "sm" ? "10px" : "13px";
+  const fontSize = size === "sm" ? 14 : 15;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      {/* ── Trigger button ── */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => { if (!disabled) setOpen(o => !o); }}
+        style={{
+          width: "100%",
+          padding: `${paddingV} 16px`,
+          borderRadius: 11,
+          border: `1.5px solid ${
+            open     ? "rgba(232,24,14,0.6)"
+            : value  ? "rgba(34,197,94,0.5)"
+            :          "rgba(255,255,255,0.13)"
+          }`,
+          background: disabled
+            ? "rgba(255,255,255,0.03)"
+            : open
+            ? "rgba(255,255,255,0.10)"
+            : "rgba(255,255,255,0.06)",
+          color: disabled
+            ? "rgba(255,255,255,0.25)"
+            : selected
+            ? "white"
+            : "rgba(255,255,255,0.45)",
+          fontSize,
+          fontFamily: "var(--font)",
+          fontWeight: selected ? 600 : 400,
+          textAlign: "left",
+          cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          transition: "all .15s",
+          outline: "none",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <ChevronDown size={15} style={{
+          flexShrink: 0,
+          transform: open ? "rotate(180deg)" : "none",
+          transition: "transform .2s",
+          opacity: disabled ? 0.3 : 0.7,
+          color: open ? "rgba(232,24,14,0.8)" : "rgba(255,255,255,0.5)",
+        }} />
+      </button>
+
+      {/* ── Dropdown panel ── */}
+      {open && !disabled && (
+        <div style={{
+          position: "absolute",
+          ...(dropUp
+            ? { bottom: "calc(100% + 6px)", top: "auto" }
+            : { top: "calc(100% + 6px)", bottom: "auto" }
+          ),
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          background: "#111c36",
+          border: "1.5px solid rgba(255,255,255,0.14)",
+          borderRadius: 12,
+          boxShadow: dropUp
+            ? "0 -10px 36px rgba(0,0,0,0.60)"
+            : "0 10px 36px rgba(0,0,0,0.60)",
+          overflow: "hidden",
+          animation: "dropIn .14s ease",
+        }}>
+          {/* Search box */}
+          <div style={{
+            padding: "10px 12px",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "rgba(255,255,255,0.03)",
+          }}>
+            <Search size={14} color="rgba(255,255,255,0.4)" style={{ flexShrink: 0 }} />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search…"
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                color: "white",
+                fontSize: 13.5,
+                fontFamily: "var(--font)",
+              }}
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "rgba(255,255,255,0.4)", padding: 0, lineHeight: 1,
+                  display: "flex",
+                }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Options list */}
+          <div style={{ maxHeight: 230, overflowY: "auto" }}>
+            {filtered.length === 0 ? (
+              <div style={{
+                padding: "16px 16px",
+                color: "rgba(255,255,255,0.3)",
+                fontSize: 13,
+                fontStyle: "italic",
+                textAlign: "center",
+              }}>
+                {query ? `No results for "${query}"` : emptyMsg}
+              </div>
+            ) : (
+              grouped.map(({ group, items }) => (
+                <div key={group || "ungrouped"}>
+                  {group && (
+                    <div style={{
+                      padding: "8px 16px 4px",
+                      fontSize: 10.5,
+                      fontWeight: 800,
+                      letterSpacing: "0.8px",
+                      textTransform: "uppercase",
+                      color: "rgba(255,255,255,0.3)",
+                      borderTop: "1px solid rgba(255,255,255,0.05)",
+                    }}>
+                      {group}
+                    </div>
+                  )}
+                  {items.map(o => {
+                    const isSelected = o.value === value;
+                    return (
+                      <div
+                        key={o.value}
+                        onClick={() => handleSelect(o.value)}
+                        style={{
+                          padding: "11px 16px",
+                          cursor: "pointer",
+                          fontSize: 14,
+                          fontWeight: isSelected ? 700 : 500,
+                          color: isSelected ? "#22c55e" : "rgba(255,255,255,0.88)",
+                          background: isSelected ? "rgba(34,197,94,0.1)" : "transparent",
+                          borderLeft: isSelected ? "3px solid #22c55e" : "3px solid transparent",
+                          transition: "all .1s",
+                        }}
+                        onMouseEnter={e => {
+                          if (!isSelected) e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                        }}
+                        onMouseLeave={e => {
+                          if (!isSelected) e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        {o.label}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Clear selection footer */}
+          {value && (
+            <div
+              onClick={() => handleSelect("")}
+              style={{
+                padding: "9px 16px",
+                borderTop: "1px solid rgba(255,255,255,0.07)",
+                fontSize: 12,
+                color: "rgba(255,255,255,0.35)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "rgba(255,255,255,0.02)",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+              onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.35)"}
+            >
+              <X size={11} /> Clear selection
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 export default function Staff() {
   const navigate = useNavigate();
@@ -40,7 +310,10 @@ export default function Staff() {
   const [certs,    setCerts]    = useState([]);
   const [staff,    setStaff]    = useState(null);
   const [error,    setError]    = useState("");
-  
+
+  // University programs (major+degree combos this uni offers)
+  const [programs, setPrograms] = useState([]);
+
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showCertModal,    setShowCertModal]    = useState(false);
   const [issuedCert,       setIssuedCert]       = useState(null);
@@ -49,22 +322,19 @@ export default function Staff() {
 
   // ── Edit modal state ──────────────────────────────────────────────────────
   const [showEditModal,  setShowEditModal]  = useState(false);
-  const [editRecord,     setEditRecord]     = useState(null);   // { record_id, student }
+  const [editRecord,     setEditRecord]     = useState(null);
   const [editForm,       setEditForm]       = useState({});
   const [editError,      setEditError]      = useState("");
   const [editLoading,    setEditLoading]    = useState(false);
   const [editLocked,     setEditLocked]     = useState(false);
   const setEF = (patch) => setEditForm(p => ({ ...p, ...patch }));
 
-  const [studentMajors,  setStudentMajors]  = useState([]);
-  const [studentDegrees, setStudentDegrees] = useState([]);
-
   const [nidStatus, setNidStatus] = useState("idle");
   const nidTimer = useRef(null);
 
   const [studentForm, setStudentForm] = useState({
     name: "", student_id: "", email: "", phone: "",
-    dob: "", national_id: "", degree: "Bachelor", major: "",
+    dob: "", national_id: "", degree: "", major: "",
   });
   const setSF = (patch) => setStudentForm(p => ({ ...p, ...patch }));
 
@@ -73,11 +343,58 @@ export default function Staff() {
   });
   const setCF = (patch) => setCertForm(p => ({ ...p, ...patch }));
 
-  const [certError,          setCertError]          = useState("");
-  const [certLoading,        setCertLoading]        = useState(false);
-  const [certStudentSearch,  setCertStudentSearch]  = useState("");
-  const [showStudentDropdown,setShowStudentDropdown]= useState(false);
+  const [certError,           setCertError]           = useState("");
+  const [certLoading,         setCertLoading]         = useState(false);
+  const [certStudentSearch,   setCertStudentSearch]   = useState("");
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const certDropdownRef = useRef(null);
+
+  // ── Derived: unique major options from programs ───────────────────────────
+  const majorOptions = useMemo(() => {
+    const seen = new Set();
+    return programs
+      .filter(p => { if (seen.has(p.major)) return false; seen.add(p.major); return true; })
+      .map(p => ({ value: p.major, label: p.major }));
+  }, [programs]);
+
+  // ── Derived: degree options filtered by selected major ────────────────────
+  const degreeOptionsForMajor = useMemo(() => (selectedMajor) => {
+    return programs
+      .filter(p => p.major === selectedMajor)
+      .map(p => ({ value: p.degree, label: p.degree }));
+  }, [programs]);
+
+  // ── Cert modal — unique students ──────────────────────────────────────────
+  const uniqueStudents = useMemo(() => {
+    const seen = new Set();
+    return (students || []).filter(s => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id); return true;
+    });
+  }, [students]);
+
+  // Majors & degrees for cert form (based on selected student's existing records)
+  const certMajorOptions = useMemo(() => {
+    if (!certForm.student_id) return [];
+    const rows = students.filter(s => String(s.id) === String(certForm.student_id));
+    const seen = new Set();
+    return rows
+      .filter(r => { if (seen.has(r.major)) return false; seen.add(r.major); return true; })
+      .map(r => ({ value: r.major, label: r.major }));
+  }, [certForm.student_id, students]);
+
+  const certDegreeOptions = useMemo(() => {
+    if (!certForm.student_id || !certForm.major) return [];
+    return students
+      .filter(s => String(s.id) === String(certForm.student_id) && s.major === certForm.major)
+      .map(s => ({ value: s.degree, label: s.degree }));
+  }, [certForm.student_id, certForm.major, students]);
+
+  // ── Edit modal major/degree options ──────────────────────────────────────
+  const editMajorOptions = majorOptions;
+  const editDegreeOptions = useMemo(() => {
+    return degreeOptionsForMajor(editForm.major || "");
+  }, [editForm.major, degreeOptionsForMajor]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchStudents = async () => {
@@ -87,8 +404,18 @@ export default function Staff() {
     } catch (err) { console.error("Fetch students error:", err); }
   };
 
+  const fetchPrograms = async () => {
+    try {
+      const res = await axios.get(`${API}/program/staff-programs`, authHeader());
+      setPrograms(res.data.programs || []);
+    } catch (err) {
+      console.error("Fetch programs error:", err);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
+    fetchPrograms();
     axios.get(`${API}/users/me`, authHeader())
       .then(r => setStaff(r.data.user))
       .catch(console.error);
@@ -106,18 +433,7 @@ export default function Staff() {
     if (showCertModal) fetchStudents();
   }, [showCertModal]);
 
-  // ── Close student search dropdown on outside click ────────────────────────
-  useEffect(() => {
-    const handler = (e) => {
-      if (certDropdownRef.current && !certDropdownRef.current.contains(e.target)) {
-        setShowStudentDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  // ── Derived data ──────────────────────────────────────────────────────────
+  // ── Grouped students for display ──────────────────────────────────────────
   const groupedStudents = useMemo(() => {
     const map = {};
     (students || []).forEach(s => {
@@ -139,20 +455,16 @@ export default function Staff() {
     return Object.values(map);
   }, [students]);
 
-  const uniqueStudents = useMemo(() => {
-    const seen = new Set();
-    return (students || []).filter(s => {
-      if (seen.has(s.id)) return false;
-      seen.add(s.id); return true;
-    });
-  }, [students]);
-
-
-  const studentOptions = uniqueStudents.map(s => ({
-  value: s.id,
-  label: `${s.full_name} · ${s.national_id}`
-}));
-
+  // ── Close cert student dropdown on outside click ──────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (certDropdownRef.current && !certDropdownRef.current.contains(e.target)) {
+        setShowStudentDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // ── National ID autofill ──────────────────────────────────────────────────
   const handleNidChange = (e) => {
@@ -186,26 +498,6 @@ export default function Staff() {
     found_uni:    { color: "#22c55e", text: "✓ Found in your university — fields pre-filled" },
     found_global: { color: "#60a5fa", text: "✓ Known student — name & date filled" },
     new:          { color: "#f59e0b", text: "New student — please fill in all details" },
-  };
-
-  // ── Cert dropdown helpers ─────────────────────────────────────────────────
-  const handleStudentSelect = (id) => {
-    setCF({ student_id: id, major: "", degree: "" });
-    setStudentMajors([]); setStudentDegrees([]);
-    if (!id) return;
-    const rows   = students.filter(s => String(s.id) === String(id));
-    const majors = [...new Set(rows.map(r => r.major).filter(Boolean))];
-    setStudentMajors(majors);
-    if (majors.length === 1) handleMajorSelect(id, majors[0], rows);
-  };
-
-  const handleMajorSelect = (sid, major, rows) => {
-    const src = rows || students.filter(s => String(s.id) === String(sid || certForm.student_id));
-    setCF({ major, degree: "" }); setStudentDegrees([]);
-    if (!major) return;
-    const degrees = [...new Set(src.filter(r => r.major === major).map(r => r.degree).filter(Boolean))];
-    setStudentDegrees(degrees);
-    if (degrees.length === 1) setCF({ major, degree: degrees[0] });
   };
 
   // ── Open edit modal ───────────────────────────────────────────────────────
@@ -268,7 +560,7 @@ export default function Staff() {
       }, authHeader());
       await fetchStudents();
       setShowStudentModal(false); setError(""); setNidStatus("idle");
-      setSF({ name:"", student_id:"", email:"", phone:"", dob:"", national_id:"", degree:"Bachelor", major:"" });
+      setSF({ name:"", student_id:"", email:"", phone:"", dob:"", national_id:"", degree:"", major:"" });
     } catch (err) { setError(err.response?.data?.message || "Something went wrong"); }
   };
 
@@ -292,7 +584,7 @@ export default function Staff() {
         status:"issued", qr_code:nc.qr_code }, ...prev]);
       setShowCertModal(false);
       setCF({ student_id:"", major:"", degree:"", gpa:"", graduation_date:"" });
-      setStudentMajors([]); setStudentDegrees([]); setCertError("");
+      setCertError(""); setCertStudentSearch(""); setShowStudentDropdown(false);
       setIssuedCert(nc);
     } catch (err) {
       setCertError(err.response?.data?.message || "Failed to issue certificate.");
@@ -311,6 +603,25 @@ export default function Staff() {
     } catch (err) { console.error("PDF download error:", err); }
   };
 
+  // ── Edit modal options with current values preserved ─────────────────────
+  const editMajorOptionsWithCurrent = useMemo(() => {
+    const opts = [...editMajorOptions];
+    if (editForm.major && !opts.find(o => o.value === editForm.major)) {
+      opts.unshift({ value: editForm.major, label: `${editForm.major} (current)` });
+    }
+    return opts;
+  }, [editMajorOptions, editForm.major]);
+
+  const editDegreeOptionsWithCurrent = useMemo(() => {
+    const opts = editDegreeOptions.length > 0
+      ? editDegreeOptions
+      : degreeOptionsForMajor(editForm.major || "");
+    if (editForm.degree && !opts.find(o => o.value === editForm.degree)) {
+      return [{ value: editForm.degree, label: `${editForm.degree} (current)` }, ...opts];
+    }
+    return opts;
+  }, [editDegreeOptions, editForm.degree, editForm.major, degreeOptionsForMajor]);
+
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <div className="container">
@@ -320,9 +631,7 @@ export default function Staff() {
         <div className="header-info">
           <div className="header-name-row">
             <User size={20} color="rgba(255,255,255,0.55)" />
-            <h1>
-              {staff ? staff.name : "Staff Portal"}
-            </h1>
+            <h1>{staff ? staff.name : "Staff Portal"}</h1>
           </div>
           <div className="header-uni-row">
             <GraduationCap size={16} color="#60b0ff" />
@@ -405,19 +714,16 @@ export default function Staff() {
                                 </div>
                               </div>
                             </div>
-
                             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                               <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:"rgba(255,255,255,0.35)" }}>
                                 <Calendar size={10}/> {formatDate(rec.enrolled_at)}
                               </div>
-                              {/* ── EDIT BUTTON ── */}
                               <button
                                 className="edit-record-btn"
                                 onClick={() => openEditModal(student, rec)}
                                 title="Edit this record"
                               >
-                                <Pencil size={12} />
-                                Edit
+                                <Pencil size={12} /> Edit
                               </button>
                             </div>
                           </div>
@@ -495,7 +801,6 @@ export default function Staff() {
               }}><X size={18}/></button>
             </div>
 
-            {/* Locked banner */}
             {editLocked && (
               <div className="edit-locked-banner">
                 <Lock size={16} />
@@ -503,16 +808,13 @@ export default function Staff() {
               </div>
             )}
 
-            {/* Generic error */}
             {editError && !editLocked && (
               <div className="form-error">⚠ {editError}</div>
             )}
 
-            {/* Only show form if not locked */}
             {!editLocked && (
               <>
                 <div className="form-section-label">Personal Info</div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Full Name</label>
@@ -529,12 +831,10 @@ export default function Staff() {
                 </div>
 
                 <div className="edit-nid-note">
-                  <Lock size={11} style={{ flexShrink:0 }}/>
-                  National ID cannot be changed
+                  <Lock size={11} style={{ flexShrink:0 }}/> National ID cannot be changed
                 </div>
 
                 <div className="form-section-label">University Details</div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Student Code</label>
@@ -549,7 +849,6 @@ export default function Staff() {
                       onChange={e => setEF({ phone: e.target.value })}/>
                   </div>
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">Email</label>
                   <input className="form-input" placeholder="student@example.com"
@@ -558,23 +857,28 @@ export default function Staff() {
                 </div>
 
                 <div className="form-section-label">Academic</div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Major</label>
-                    <input className="form-input" placeholder="e.g. Computer Science"
+                    <SearchableDropdown
+                      options={editMajorOptionsWithCurrent}
                       value={editForm.major}
-                      onChange={e => setEF({ major: e.target.value })}/>
+                      onChange={(v) => setEF({ major: v, degree: "" })}
+                      placeholder="Select major…"
+                      emptyMsg="No programmes configured for this university"
+                      dropUp
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Degree</label>
-                    <select className="form-select"
+                    <SearchableDropdown
+                      options={editDegreeOptionsWithCurrent}
                       value={editForm.degree}
-                      onChange={e => setEF({ degree: e.target.value })}>
-                      <option>Bachelor</option>
-                      <option>Master</option>
-                      <option>PhD</option>
-                    </select>
+                      onChange={(v) => setEF({ degree: v })}
+                      placeholder={editForm.major ? "Select degree…" : "Select major first"}
+                      disabled={!editForm.major}
+                      dropUp
+                    />
                   </div>
                 </div>
 
@@ -589,7 +893,6 @@ export default function Staff() {
               </>
             )}
 
-            {/* Locked — only close button */}
             {editLocked && (
               <div className="modal-actions" style={{ marginTop:20 }}>
                 <button onClick={() => { setShowEditModal(false); setEditError(""); setEditLocked(false); }}>
@@ -601,26 +904,29 @@ export default function Staff() {
         </div>
       )}
 
-      {/* ADD STUDENT MODAL */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          ADD STUDENT MODAL  —  wider, bigger fonts, stacked major/degree
+      ══════════════════════════════════════════════════════════════════════ */}
       {showStudentModal && (
         <div className="modal">
-          <div className="modal-box" style={{ maxHeight:"90vh", overflowY:"auto" }}>
+          <div className="modal-box modal-box--wide" style={{ maxHeight:"92vh", overflowY:"auto" }}>
             <div className="modal-header">
               <div>
-                <h2>Add Student</h2>
+                <h2 className="modal-title-lg">Add Student / Degree</h2>
                 <p className="modal-subtitle">Enter a National ID to auto-fill known details</p>
               </div>
               <button className="modal-close" onClick={() => {
                 setShowStudentModal(false); setError(""); setNidStatus("idle");
-                setSF({ name:"", student_id:"", email:"", phone:"", dob:"", national_id:"", degree:"Bachelor", major:"" });
-              }}><X size={18}/></button>
+                setSF({ name:"", student_id:"", email:"", phone:"", dob:"", national_id:"", degree:"", major:"" });
+              }}><X size={20}/></button>
             </div>
 
             {error && <div className="form-error">⚠ {error}</div>}
 
+            {/* National ID */}
             <div className="form-group">
-              <label className="form-label">National ID</label>
-              <input className="form-input" placeholder="e.g. 182712167"
+              <label className="form-label form-label--lg">National ID</label>
+              <input className="form-input form-input--lg" placeholder="e.g. 182712167"
                 value={studentForm.national_id} onChange={handleNidChange}/>
             </div>
 
@@ -634,20 +940,20 @@ export default function Staff() {
               </div>
             )}
 
+            {/* ── Personal Info ── */}
             <div className="form-section-label">Personal Info</div>
-
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Full Name</label>
-                <input className="form-input" placeholder="First & Last name"
+                <label className="form-label form-label--lg">Full Name</label>
+                <input className="form-input form-input--lg" placeholder="First & Last name"
                   value={studentForm.name}
                   readOnly={nidStatus === "found_uni" || nidStatus === "found_global"}
                   style={{ opacity: (nidStatus === "found_uni" || nidStatus === "found_global") ? .45 : 1 }}
                   onChange={e => setSF({ name: e.target.value })}/>
               </div>
               <div className="form-group">
-                <label className="form-label">Date of Birth</label>
-                <input className="form-input" type="date"
+                <label className="form-label form-label--lg">Date of Birth</label>
+                <input className="form-input form-input--lg" type="date"
                   value={studentForm.dob}
                   readOnly={nidStatus === "found_uni" || nidStatus === "found_global"}
                   style={{ opacity: (nidStatus === "found_uni" || nidStatus === "found_global") ? .45 : 1 }}
@@ -655,59 +961,92 @@ export default function Staff() {
               </div>
             </div>
 
+            {/* ── University Details ── */}
             <div className="form-section-label">University Details</div>
-
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Student Code</label>
-                <input className="form-input" placeholder="8-digit code"
+                <label className="form-label form-label--lg">Student Code</label>
+                <input className="form-input form-input--lg" placeholder="8-digit code"
                   value={studentForm.student_id}
                   readOnly={nidStatus === "found_uni"}
                   style={{ opacity: nidStatus === "found_uni" ? .45 : 1 }}
                   onChange={e => setSF({ student_id: e.target.value })}/>
               </div>
               <div className="form-group">
-                <label className="form-label">Phone</label>
-                <input className="form-input" placeholder="71123456"
+                <label className="form-label form-label--lg">Phone</label>
+                <input className="form-input form-input--lg" placeholder="71123456"
                   value={studentForm.phone}
                   readOnly={nidStatus === "found_uni"}
                   style={{ opacity: nidStatus === "found_uni" ? .45 : 1 }}
                   onChange={e => setSF({ phone: e.target.value })}/>
               </div>
             </div>
-
             <div className="form-group">
-              <label className="form-label">Email</label>
-              <input className="form-input" placeholder="student@example.com"
+              <label className="form-label form-label--lg">Email</label>
+              <input className="form-input form-input--lg" placeholder="student@example.com"
                 value={studentForm.email}
                 readOnly={nidStatus === "found_uni"}
                 style={{ opacity: nidStatus === "found_uni" ? .45 : 1 }}
                 onChange={e => setSF({ email: e.target.value })}/>
             </div>
 
-            <div className="form-section-label">Academic</div>
+            {/* ── Academic Programme — full-width stacked ── */}
+            <div className="form-section-label" style={{ marginTop: 20 }}>Academic Programme</div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Major</label>
-                <input className="form-input" placeholder="e.g. Computer Science"
-                  value={studentForm.major} onChange={e => setSF({ major: e.target.value })}/>
+            {programs.length === 0 && (
+              <div className="form-empty-note" style={{ marginBottom: 14 }}>
+                ⚠ No programmes configured for this university yet. Contact your admin to add programmes first.
               </div>
-              <div className="form-group">
-                <label className="form-label">Degree</label>
-                <select className="form-select" value={studentForm.degree} onChange={e => setSF({ degree: e.target.value })}>
-                  <option>Bachelor</option>
-                  <option>Master</option>
-                  <option>PhD</option>
-                </select>
-              </div>
+            )}
+
+            {/* MAJOR — full width */}
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label form-label--lg">
+                Major
+                {studentForm.major && (
+                  <span className="programme-selected-badge">{studentForm.major}</span>
+                )}
+              </label>
+              <SearchableDropdown
+                options={majorOptions}
+                value={studentForm.major}
+                onChange={(v) => setSF({ major: v, degree: "" })}
+                placeholder={programs.length === 0 ? "No programmes available" : "Search or select a major…"}
+                disabled={programs.length === 0}
+                emptyMsg="No majors match your search"
+              />
             </div>
 
-            <div className="modal-actions">
-              <button onClick={addStudent}>Add Student</button>
+            {/* DEGREE — full width, enabled only after major is chosen */}
+            <div className="form-group" style={{ marginBottom: 6 }}>
+              <label className="form-label form-label--lg">
+                Degree
+                {studentForm.degree && (
+                  <span className="programme-selected-badge programme-selected-badge--degree">{studentForm.degree}</span>
+                )}
+              </label>
+              {/* Hint when major not selected yet */}
+              {!studentForm.major && programs.length > 0 && (
+                <p className="degree-hint-text">← Select a major first to see available degrees</p>
+              )}
+              <SearchableDropdown
+                options={degreeOptionsForMajor(studentForm.major)}
+                value={studentForm.degree}
+                onChange={(v) => setSF({ degree: v })}
+                placeholder={!studentForm.major ? "Select a major first" : "Search or select a degree…"}
+                disabled={!studentForm.major}
+                emptyMsg="No degrees available for this major"
+              />
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: 24 }}>
+              <button onClick={addStudent}
+                disabled={!studentForm.major || !studentForm.degree}>
+                Add Student
+              </button>
               <button onClick={() => {
                 setShowStudentModal(false); setError(""); setNidStatus("idle");
-                setSF({ name:"", student_id:"", email:"", phone:"", dob:"", national_id:"", degree:"Bachelor", major:"" });
+                setSF({ name:"", student_id:"", email:"", phone:"", dob:"", national_id:"", degree:"", major:"" });
               }}>Cancel</button>
             </div>
           </div>
@@ -717,7 +1056,7 @@ export default function Staff() {
       {/* ISSUE CERTIFICATE MODAL */}
       {showCertModal && (
         <div className="modal">
-          <div className="modal-box">
+          <div className="modal-box" style={{ maxHeight:"92vh", overflowY:"auto" }}>
             <div className="modal-header">
               <div>
                 <h2>Issue Certificate</h2>
@@ -726,13 +1065,13 @@ export default function Staff() {
               <button className="modal-close" onClick={() => {
                 setShowCertModal(false);
                 setCF({ student_id:"", major:"", degree:"", gpa:"", graduation_date:"" });
-                setStudentMajors([]); setStudentDegrees([]); setCertError("");
-                setCertStudentSearch(""); setShowStudentDropdown(false);
+                setCertError(""); setCertStudentSearch(""); setShowStudentDropdown(false);
               }}><X size={18}/></button>
             </div>
 
             {certError && <div className="form-error">⚠ {certError}</div>}
 
+            {/* ── 1. Student search — FIRST field, dropdown opens downward ── */}
             <div className="form-group" ref={certDropdownRef}>
               <label className="form-label">Student</label>
               {uniqueStudents.length === 0 ? (
@@ -740,9 +1079,15 @@ export default function Staff() {
                   No students registered at your university yet. Add a student first.
                 </div>
               ) : (
-                <>
+                /* Relative wrapper so we can absolutely position the drop-up panel */
+                <div style={{ position: "relative" }}>
                   {/* Search input */}
                   <div style={{ position: "relative" }}>
+                    <Search size={15} style={{
+                      position: "absolute", left: 13, top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "rgba(255,255,255,0.35)", pointerEvents: "none",
+                    }} />
                     <input
                       className="form-input"
                       placeholder="Search by name or ID…"
@@ -750,41 +1095,30 @@ export default function Staff() {
                         certForm.student_id
                           ? (() => {
                               const sel = uniqueStudents.find(s => String(s.id) === String(certForm.student_id));
-                              return showStudentDropdown
-                                ? certStudentSearch
+                              return showStudentDropdown ? certStudentSearch
                                 : sel ? `${sel.full_name}  ·  ${sel.national_id}` : certStudentSearch;
                             })()
                           : certStudentSearch
                       }
-                      onFocus={() => {
-                        setCertStudentSearch("");
-                        setShowStudentDropdown(true);
-                      }}
+                      onFocus={() => { setCertStudentSearch(""); setShowStudentDropdown(true); }}
                       onChange={e => {
                         setCertStudentSearch(e.target.value);
                         setShowStudentDropdown(true);
-                        if (!e.target.value) {
-                          handleStudentSelect("");
-                          setCertError("");
-                        }
+                        if (!e.target.value) { setCF({ student_id:"", major:"", degree:"" }); setCertError(""); }
                       }}
                       style={{
-                        paddingRight: 32,
+                        paddingLeft: 38,
+                        paddingRight: 36,
                         borderColor: certForm.student_id ? "rgba(34,197,94,0.5)" : undefined,
                       }}
                     />
-                    {/* Clear button */}
                     {certForm.student_id && (
                       <button
-                        onClick={() => {
-                          handleStudentSelect("");
-                          setCertStudentSearch("");
-                          setCertError("");
-                        }}
+                        onClick={() => { setCF({ student_id:"", major:"", degree:"" }); setCertStudentSearch(""); setCertError(""); }}
                         style={{
-                          position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
-                          background: "none", border: "none", cursor: "pointer",
-                          color: "rgba(255,255,255,0.4)", padding: 0, lineHeight: 1,
+                          position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                          background:"none", border:"none", cursor:"pointer",
+                          color:"rgba(255,255,255,0.4)", padding:0, lineHeight:1, display:"flex",
                         }}
                       >
                         <X size={14} />
@@ -792,7 +1126,7 @@ export default function Staff() {
                     )}
                   </div>
 
-                  {/* Dropdown list */}
+                  {/* Dropdown panel — opens downward, high z-index floats over fields below */}
                   {showStudentDropdown && (() => {
                     const q = certStudentSearch.toLowerCase().trim();
                     const filtered = uniqueStudents.filter(s =>
@@ -802,79 +1136,86 @@ export default function Staff() {
                     );
                     return (
                       <div style={{
-                        background: "#111c36", border: "1px solid rgba(255,255,255,0.12)",
-                        borderRadius: 10, marginTop: 4,
-                        maxHeight: 200, overflowY: "auto",
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+                        position: "absolute",
+                        top: "calc(100% + 6px)",
+                        left: 0, right: 0,
+                        zIndex: 1001,
+                        background: "#111c36",
+                        border: "1.5px solid rgba(255,255,255,0.14)",
+                        borderRadius: 12,
+                        maxHeight: 220,
+                        overflowY: "auto",
+                        boxShadow: "0 10px 36px rgba(0,0,0,0.65)",
+                        animation: "dropIn .14s ease",
                       }}>
                         {filtered.length === 0 ? (
-                          <div style={{ padding: "12px 14px", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
-                            No students match "{certStudentSearch}"
+                          <div style={{
+                            padding: "14px 16px",
+                            color: "rgba(255,255,255,0.35)",
+                            fontSize: 13, fontStyle: "italic", textAlign: "center",
+                          }}>
+                            {certStudentSearch ? `No students match "${certStudentSearch}"` : "No students found"}
                           </div>
                         ) : filtered.map(s => (
                           <div
                             key={s.id}
                             onClick={() => {
-                              handleStudentSelect(s.id);
-                              setCertStudentSearch("");
-                              setCertError("");
-                              setShowStudentDropdown(false);
+                              setCF({ student_id: s.id, major: "", degree: "" });
+                              setCertStudentSearch(""); setCertError(""); setShowStudentDropdown(false);
                             }}
                             style={{
-                              padding: "10px 14px", cursor: "pointer", fontSize: 13,
+                              padding: "11px 16px", cursor: "pointer",
                               display: "flex", justifyContent: "space-between", alignItems: "center",
-                              background: String(certForm.student_id) === String(s.id)
-                                ? "rgba(34,197,94,0.1)" : "transparent",
-                              borderLeft: String(certForm.student_id) === String(s.id)
-                                ? "3px solid #22c55e" : "3px solid transparent",
+                              background: String(certForm.student_id) === String(s.id) ? "rgba(34,197,94,0.1)" : "transparent",
+                              borderLeft: String(certForm.student_id) === String(s.id) ? "3px solid #22c55e" : "3px solid transparent",
+                              transition: "background .1s",
                             }}
                             onMouseEnter={e => { if (String(certForm.student_id) !== String(s.id)) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                             onMouseLeave={e => { if (String(certForm.student_id) !== String(s.id)) e.currentTarget.style.background = "transparent"; }}
                           >
-                            <span style={{ fontWeight: 600, color: "white" }}>{s.full_name}</span>
-                            <span style={{ color: "rgba(255,255,255,0.35)", fontFamily: "monospace", fontSize: 11 }}>
-                              {s.national_id}
-                            </span>
+                            <div>
+                              <div style={{ fontWeight: 700, color: "white", fontSize: 14 }}>{s.full_name}</div>
+                              <div style={{ color: "rgba(255,255,255,0.38)", fontFamily: "monospace", fontSize: 11, marginTop: 2 }}>
+                                NID: {s.national_id}
+                              </div>
+                            </div>
+                            {String(certForm.student_id) === String(s.id) && (
+                              <span style={{ color: "#22c55e", fontSize: 12, fontWeight: 700 }}>✓ Selected</span>
+                            )}
                           </div>
                         ))}
                       </div>
                     );
                   })()}
-                </>
+                </div>
               )}
             </div>
 
+            {/* ── 2. Major & Degree ── */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Major</label>
-                <select className="form-select"
+                <SearchableDropdown
+                  options={certMajorOptions}
                   value={certForm.major}
-                  disabled={studentMajors.length === 0}
-                  onChange={e => { handleMajorSelect(null, e.target.value, null); setCertError(""); }}>
-                  <option value="">
-                    {!certForm.student_id ? "Select a student first"
-                      : studentMajors.length === 0 ? "No majors found"
-                      : "— Select major —"}
-                  </option>
-                  {studentMajors.map(m => <option key={m}>{m}</option>)}
-                </select>
+                  onChange={(v) => { setCF({ major: v, degree: "" }); setCertError(""); }}
+                  placeholder={!certForm.student_id ? "Select a student first" : certMajorOptions.length === 0 ? "No records found" : "Select major…"}
+                  disabled={!certForm.student_id || certMajorOptions.length === 0}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Degree</label>
-                <select className="form-select"
+                <SearchableDropdown
+                  options={certDegreeOptions}
                   value={certForm.degree}
-                  disabled={studentDegrees.length === 0}
-                  onChange={e => { setCF({ degree: e.target.value }); setCertError(""); }}>
-                  <option value="">
-                    {!certForm.major ? "Select major first"
-                      : studentDegrees.length === 0 ? "No degrees found"
-                      : "— Select degree —"}
-                  </option>
-                  {studentDegrees.map(d => <option key={d}>{d}</option>)}
-                </select>
+                  onChange={(v) => { setCF({ degree: v }); setCertError(""); }}
+                  placeholder={!certForm.major ? "Select major first" : "Select degree…"}
+                  disabled={!certForm.major}
+                />
               </div>
             </div>
 
+            {/* ── 3. GPA + Graduation Date ── */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">
@@ -898,8 +1239,7 @@ export default function Staff() {
               <button onClick={() => {
                 setShowCertModal(false);
                 setCF({ student_id:"", major:"", degree:"", gpa:"", graduation_date:"" });
-                setStudentMajors([]); setStudentDegrees([]); setCertError("");
-                setCertStudentSearch(""); setShowStudentDropdown(false);
+                setCertError(""); setCertStudentSearch(""); setShowStudentDropdown(false);
               }}>Cancel</button>
             </div>
           </div>
