@@ -326,38 +326,143 @@ const checkRevokeReissue = async (certData) => {
   return { fired: false };
 };
 
-// ─────────────────────────────────────────────────────────────
-// RULE 7 — OFF-HOURS ISSUANCE
-// ─────────────────────────────────────────────────────────────
-// Fires when a certificate is issued between 1am and 5am
-// (server local time). This is a low-weight flag on its own
-// but it combines with other rules to raise overall risk.
+// ============================================================
+// REPLACEMENT FOR RULE 7 — checkOffHours in fraudDetector.js
+// ============================================================
 //
-// Why this matters:
-//   Academic staff work during business hours. Legitimate
-//   late-night work is possible but unusual. Combined with
-//   high velocity or edit-before-issue, off-hours issuance
-//   strongly suggests unauthorized automated or manual abuse.
+// WHAT CHANGED AND WHY:
 //
-// We check server time here. If your server is UTC and staff
-// are in Lebanon (UTC+3), adjust HOUR_START/HOUR_END by +3.
-// ─────────────────────────────────────────────────────────────
+// OLD (wrong):
+//   const HOUR_START = 1;
+//   const HOUR_END   = 5;
+//   if (currentHour >= HOUR_START && currentHour < HOUR_END) { fire }
+//
+//   Problem: hardcoded constants don't reflect the real world.
+//   LIU works 8–16, BAU works 8–17, some universities work
+//   Saturdays, some don't. A Lebanese holiday means nothing
+//   to hardcoded hours.
+//
+// NEW (correct):
+//   1. Read work_start, work_end, work_days from university_schedule
+//   2. Check if the current date is a configured holiday
+//   3. Fire if the issuance happened OUTSIDE working hours OR
+//      on a non-working day OR on a holiday
+//
+// This way each university admin decides what "off hours" means
+// for their institution. The fraud rule adapts automatically.
+//
+// ============================================================
+// HOW TO INTEGRATE:
+//
+// In fraudDetector.js, REPLACE the entire checkOffHours function
+// with the one below. Everything else in the file stays the same.
+// ============================================================
+
 const checkOffHours = async (certData) => {
-  const HOUR_START = 1;   // 1 AM — start of suspicious window
-  const HOUR_END   = 5;   // 5 AM — end of suspicious window
+  // ── Step 1: Fetch this university's schedule from DB ──────
+  const [scheduleRows] = await db.query(
+    `SELECT work_start, work_end, work_days, timezone
+     FROM university_schedule
+     WHERE university_id = ?
+     LIMIT 1`,
+    [certData.university_id]
+  );
 
-  // Get the current hour in server time
-  const currentHour = new Date().getHours();
+  // If no schedule is configured, fall back to a safe default
+  // (Mon–Fri 08:00–17:00) so the rule still works even before
+  // the admin has set up their schedule.
+  const schedule = scheduleRows[0] || {
+    work_start: "08:00:00",
+    work_end:   "17:00:00",
+    work_days:  [1, 2, 3, 4, 5], // Mon–Fri
+    timezone:   "Asia/Beirut",
+  };
 
-  if (currentHour >= HOUR_START && currentHour < HOUR_END) {
+  // work_days comes from DB as a JSON string or already an array
+  const workDays = Array.isArray(schedule.work_days)
+    ? schedule.work_days
+    : JSON.parse(schedule.work_days);
+
+  // ── Step 2: Get current date/time in the university's timezone ──
+  // We use Intl to convert the server's UTC time to the university's
+  // local time — so a Beirut university is judged by Beirut time,
+  // not by the server's timezone.
+  const now = new Date();
+
+  const localTimeStr = now.toLocaleString("en-US", {
+    timeZone: schedule.timezone,
+    hour12:   false,
+    year:     "numeric",
+    month:    "2-digit",
+    day:      "2-digit",
+    hour:     "2-digit",
+    minute:   "2-digit",
+    second:   "2-digit",
+  });
+
+  // Parse the localized string back into parts
+  // Format from en-US: "MM/DD/YYYY, HH:MM:SS"
+  const [datePart, timePart] = localTimeStr.split(", ");
+  const [month, day, year]   = datePart.split("/");
+  const [hour, minute]       = timePart.split(":").map(Number);
+
+  // Day of week in the university's local timezone (0=Sun...6=Sat)
+  const localDate    = new Date(`${year}-${month}-${day}T${timePart}`);
+  const dayOfWeek    = localDate.getDay();
+  const todayDateStr = `${year}-${month}-${day}`; // YYYY-MM-DD for holiday lookup
+
+  // ── Step 3: Check if today is a configured holiday ────────
+  const [holidayRows] = await db.query(
+    `SELECT label FROM university_holidays
+     WHERE university_id = ?
+       AND holiday_date  = ?
+     LIMIT 1`,
+    [certData.university_id, `${year}-${month}-${day}`]
+  );
+
+  if (holidayRows.length > 0) {
+    const holidayLabel = holidayRows[0].label;
     return {
       fired:     true,
       source:    "RULE_OFF_HOURS",
-      reason:    `Certificate issued at ${new Date().toTimeString().slice(0, 8)} (hour ${currentHour}), which falls within the off-hours window (${HOUR_START}:00–${HOUR_END}:00). Unusual issuance time.`,
+      reason:    `Certificate issued on "${holidayLabel}" (${todayDateStr}), which is a configured university holiday. Staff should not be issuing certificates on this day.`,
       riskScore: RISK.OFF_HOURS,
     };
   }
 
+  // ── Step 4: Check if today is a working day ───────────────
+  if (!workDays.includes(dayOfWeek)) {
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    return {
+      fired:     true,
+      source:    "RULE_OFF_HOURS",
+      reason:    `Certificate issued on a ${dayNames[dayOfWeek]}, which is not a configured working day for this university. Configured working days: ${workDays.map(d => dayNames[d]).join(", ")}.`,
+      riskScore: RISK.OFF_HOURS,
+    };
+  }
+
+  // ── Step 5: Check if current time is within working hours ─
+  // Convert work_start and work_end to comparable numbers (HHMM)
+  const [startHour, startMin] = schedule.work_start.split(":").map(Number);
+  const [endHour,   endMin]   = schedule.work_end.split(":").map(Number);
+
+  const currentMinutes = hour * 60 + minute;            // e.g. 09:30 → 570
+  const startMinutes   = startHour * 60 + startMin;     // e.g. 08:00 → 480
+  const endMinutes     = endHour   * 60 + endMin;       // e.g. 16:00 → 960
+
+  const isOutsideHours = currentMinutes < startMinutes || currentMinutes >= endMinutes;
+
+  if (isOutsideHours) {
+    const currentTimeFormatted = `${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}`;
+    return {
+      fired:     true,
+      source:    "RULE_OFF_HOURS",
+      reason:    `Certificate issued at ${currentTimeFormatted} (${schedule.timezone}), which is outside this university's configured working hours (${schedule.work_start.slice(0,5)}–${schedule.work_end.slice(0,5)}). Contact admin if this was legitimate.`,
+      riskScore: RISK.OFF_HOURS,
+    };
+  }
+
+  // All checks passed — issuance is within working hours on a working day
   return { fired: false };
 };
 

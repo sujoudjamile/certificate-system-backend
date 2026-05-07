@@ -13,6 +13,7 @@ const studentRoutes = require("./routes/studentRoutes");
 const auditRoutes       = require("./routes/auditRouts");
 const certificateRoutes = require("./routes/certificationRoutes");
 const fraudRoutes = require("./routes/fraudRoutes");
+const scheduleRoutes = require("./routes/scheduleRoutes");
 const { startCertRenewalScheduler } = require("./utils/certRenewal");
 const errorHandler = require("./middleware/errorHandler");
 const app = express();
@@ -67,6 +68,7 @@ app.use("/api/students", studentRoutes);
 app.use("/api/fraud", fraudRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/audit", auditRoutes);
+app.use("/api/schedule", scheduleRoutes);
 
 /*
 ==================================

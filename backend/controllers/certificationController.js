@@ -10,7 +10,7 @@ const AppError     = require("../utils/AppError");
 const multer       = require("multer");
 const { signWithVault, getVaultPublicKey }          = require("../utils/vaultClient");
 const { signPdf, verifyPdfSignature, buildPdfBuffer } = require("../utils/pdfSigner");
-const logAction = require("../utils/auditLog");
+const logAction = require("../utils/auditlog");
 const { runFraudChecks } = require("../utils/fraudDetector"); // ← ADD THIS LINE
 const sendEmail = require("../utils/sendEmail");
 // ── pdf-parse: safe import that works on Node v24 ──
@@ -103,6 +103,16 @@ const issueCertificate = asyncHandler(async (req, res) => {
 
   if (!student_id || !degree || !major || !graduation_date)
     throw new AppError("student_id, degree, major, and graduation_date are required", 400);
+  // ── GPA validation ──
+  if (GPA !== undefined && GPA !== null && GPA !== "") {
+  const gpaNum = parseFloat(GPA);
+  if (isNaN(gpaNum))
+    throw new AppError("GPA must be a valid number", 400);
+  if (gpaNum < 2.0)
+    throw new AppError("GPA must be at least 2.0 — student has not met the minimum passing grade", 400);
+  if (gpaNum > 4.0)
+    throw new AppError("GPA cannot exceed 4.0 — maximum GPA is 4.0", 400);
+}
 
   const university_id = req.user.university_id;
   const created_by    = req.user.id;
