@@ -12,6 +12,8 @@ const {
   revokeCertificate,
   downloadCertificatePdf,
   upload,
+  getRevokedCertificates,
+  allowReissue,
 } = require("../controllers/certificationController");
 
 const authenticateToken = require("../middleware/authMiddleware");
@@ -29,6 +31,14 @@ router.post(
   authenticateToken,
   authorizeRoles("staff", "admin"),
   issueCertificate
+);
+
+// PROTECTED — get revoked certificates
+router.get(
+  "/revoked",
+  authenticateToken,
+  authorizeRoles("admin", "super_admin"),
+  getRevokedCertificates
 );
 
 // PROTECTED — list certificates
@@ -55,12 +65,21 @@ router.patch(
   revokeCertificate
 );
 
+
 // PROTECTED — download signed PDF
 router.get(
   "/:id/pdf",
   authenticateToken,
   authorizeRoles("staff", "admin", "super_admin"),
   downloadCertificatePdf
+);
+
+// PROTECTED — allow reissue for a revoked certificate
+router.patch(
+  "/:id/allow-reissue",
+  authenticateToken,
+  authorizeRoles("admin", "super_admin"),
+  allowReissue
 );
 
 module.exports = router;

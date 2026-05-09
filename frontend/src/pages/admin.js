@@ -117,7 +117,7 @@ function UniNavbar({ universityName, adminName, pendingCount, onSignOut, onBellC
 // ─────────────────────────────────────────────────────────────
 // TAB BAR
 // ─────────────────────────────────────────────────────────────
-function TabBar({ activeTab, onChange, staffCount, pendingFlagsCount, programCount }) {
+function TabBar({ activeTab, onChange, staffCount, pendingFlagsCount, revokedCount }) {
   return (
     <div className="uni-tabs">
       <button className={`uni-tab ${activeTab === "overview" ? "active" : ""}`}
@@ -128,10 +128,6 @@ function TabBar({ activeTab, onChange, staffCount, pendingFlagsCount, programCou
         onClick={() => onChange("staff")}>
         <Users size={16} /> Staff ({staffCount})
       </button>
-      <button className={`uni-tab ${activeTab === "programs" ? "active" : ""}`}
-        onClick={() => onChange("programs")}>
-        <Layers size={16} /> Programs ({programCount})
-      </button>
       <button className={`uni-tab ${activeTab === "alerts" ? "active" : ""}`}
         onClick={() => onChange("alerts")}>
         <AlertTriangle size={16} /> Fraud Alerts
@@ -141,7 +137,14 @@ function TabBar({ activeTab, onChange, staffCount, pendingFlagsCount, programCou
       </button>
       <button className={`uni-tab ${activeTab === "schedule" ? "active" : ""}`}
         onClick={() => onChange("schedule")}>
-        <Calendar size={16} /> Schedule
+        <Clock size={16} /> Schedule
+      </button>
+      <button className={`uni-tab ${activeTab === "revoked" ? "active" : ""}`}
+        onClick={() => onChange("revoked")}>
+        <XCircle size={16} /> Revoked Certs
+        {revokedCount > 0 && (
+          <span className="tab-badge">{revokedCount}</span>
+        )}
       </button>
     </div>
   );
@@ -894,6 +897,160 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// REVOKED CERTIFICATES TAB
+// ─────────────────────────────────────────────────────────────
+function RevokedCertsTab({ addToast }) {
+  const [certificates, setCertificates] = useState([]);
+  const [loading,      setLoading]      = useState(true);
+
+  const fetchRevoked = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/certificates/revoked`, authHeader());
+      setCertificates(res.data.certificates || []);
+    } catch (err) {
+      console.error("Failed to fetch revoked certificates:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRevoked(); }, []);
+
+  const handleAllowReissue = async (certId, certNumber) => {
+    try {
+      await axios.patch(
+        `${API}/certificates/${certId}/allow-reissue`,
+        {},
+        authHeader()
+      );
+      addToast("success", "Reissue Allowed",
+        `Staff can now issue a new certificate to replace ${certNumber}.`);
+      fetchRevoked();
+    } catch (err) {
+      addToast("info", "Error",
+        err.response?.data?.message || "Failed to allow reissue.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>
+        <RefreshCw size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
+        <p style={{ margin: 0 }}>Loading revoked certificates...</p>
+      </div>
+    );
+  }
+
+  if (certificates.length === 0) {
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: 16, padding: "60px 0",
+      }}>
+        <CheckCircle2 size={64} color="#2dce8a" />
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 16, margin: 0 }}>
+          No revoked certificates
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {certificates.map((cert) => (
+        <div key={cert.id} className="flag-card">
+          <div className="flag-card__header">
+            <div className="flag-card__left">
+              <span className="flag-rule-tag" style={{
+                background: "rgba(239,68,68,0.14)",
+                color: "#ff7f7a",
+                border: "1px solid rgba(239,68,68,0.25)",
+              }}>
+                REVOKED
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+                <FileText size={16} color="#e10600" />
+                <span className="flag-card__student">{cert.student_name}</span>
+              </div>
+              <p className="flag-card__cert">
+                {cert.cert_number} · {cert.degree} in {cert.major}
+                {cert.GPA ? ` · GPA ${parseFloat(cert.GPA).toFixed(2)}` : ""}
+              </p>
+              <p className="flag-card__meta">
+                {cert.university_name} · Issued by{" "}
+                <strong style={{ color: "rgba(255,255,255,0.7)" }}>
+                  {cert.issued_by}
+                </strong>
+              </p>
+            </div>
+
+            <div className="flag-card__right">
+              <span className="flag-status-badge" style={{
+                color: cert.allow_reissue ? "#22c55e" : "#ef4444",
+                background: cert.allow_reissue
+                  ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                border: cert.allow_reissue
+                  ? "1px solid rgba(34,197,94,0.30)" : "1px solid rgba(239,68,68,0.30)",
+              }}>
+                {cert.allow_reissue ? "✅ Reissue Allowed" : "🔒 Reissue Blocked"}
+              </span>
+            </div>
+          </div>
+
+          {/* Revoke reasons */}
+          {cert.revoke_reason && (
+            <div className="flag-reason-box">
+              <p className="flag-reason-label">REVOKE REASON</p>
+              <p className="flag-reason-text">{cert.revoke_reason}</p>
+            </div>
+          )}
+
+          {/* Student & cert details */}
+          <div className="flag-details" style={{ marginTop: 12 }}>
+            <div className="flag-details__grid">
+              <div className="flag-detail-item">
+                <span className="flag-detail-label">National ID</span>
+                <span className="flag-detail-value">{cert.national_id}</span>
+              </div>
+              <div className="flag-detail-item">
+                <span className="flag-detail-label">Graduation Date</span>
+                <span className="flag-detail-value">
+                  {new Date(cert.graduation_date).toLocaleDateString("en-GB")}
+                </span>
+              </div>
+              <div className="flag-detail-item">
+                <span className="flag-detail-label">Issued At</span>
+                <span className="flag-detail-value">
+                  {new Date(cert.created_at).toLocaleString()}
+                </span>
+              </div>
+              <div className="flag-detail-item">
+                <span className="flag-detail-label">Certificate ID</span>
+                <span className="flag-detail-value">{cert.id}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action button */}
+          {!cert.allow_reissue && (
+            <div className="flag-actions">
+              <button
+                className="flag-dismiss-btn"
+                onClick={() => handleAllowReissue(cert.id, cert.cert_number)}
+              >
+                <CheckCircle2 size={14} />
+                Allow Reissue
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // ADD STAFF MODAL
 // ─────────────────────────────────────────────────────────────
 function AddStaffModal({ onClose, onSubmit }) {
@@ -1483,6 +1640,7 @@ export default function UniversityAdmin() {
   const [loadingAdmin,    setLoadingAdmin]    = useState(true);
   const [loadingFlags,    setLoadingFlags]    = useState(false);
   const [toasts,          setToasts]          = useState([]);
+  const [revokedCerts, setRevokedCerts]       = useState([]);
   const [overviewSchedule, setOverviewSchedule] = useState(null);
 
   const prevFlagCountRef = useRef(0);
@@ -1586,6 +1744,15 @@ export default function UniversityAdmin() {
     }
   }, []);
 
+  const fetchRevokedCerts = useCallback(async () => {
+  try {
+    const res = await axios.get(`${API}/certificates/revoked`, authHeader());
+    setRevokedCerts(res.data.certificates || []);
+  } catch (err) {
+    console.error("Failed to fetch revoked certs:", err);
+  }
+}, []);
+
   // ── Start polling ──
   const startPolling = useCallback(() => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
@@ -1645,6 +1812,7 @@ export default function UniversityAdmin() {
       fetchFraudFlags();
       fetchFraudStats();
       fetchPrograms();
+      fetchRevokedCerts();  // ← ADD THIS LINE
       startPolling();
       // Fetch schedule summary for overview widget
       Promise.all([
@@ -1683,11 +1851,11 @@ export default function UniversityAdmin() {
 
       <main className="uni-body">
         <TabBar
-          activeTab={activeTab}
-          onChange={setActiveTab}
-          staffCount={staffList.length}
-          pendingFlagsCount={pendingFlags.length}
-          programCount={activePrograms.length}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        staffCount={staffList.length}
+        pendingFlagsCount={pendingFlags.length}
+        revokedCount={revokedCerts.filter(c => !c.allow_reissue).length}
         />
 
         {/* ── OVERVIEW TAB ── */}
@@ -1769,6 +1937,26 @@ export default function UniversityAdmin() {
         {activeTab === "schedule" && (
           <ScheduleTab addToast={addToast} />
         )}
+
+        {/* ── REVOKED CERTS TAB ── */}
+{activeTab === "revoked" && (
+  <>
+    <div style={{
+      display: "flex", justifyContent: "space-between",
+      alignItems: "center", marginBottom: 20,
+    }}>
+      <h3 style={{ color: "white", margin: 0 }}>
+        Revoked Certificates
+        {revokedCerts.length > 0 && (
+          <span style={{ marginLeft: 10, fontSize: 14, color: "#ef4444", fontWeight: 400 }}>
+            ({revokedCerts.length} revoked)
+          </span>
+        )}
+      </h3>
+    </div>
+    <RevokedCertsTab addToast={addToast} />
+  </>
+)}
       </main>
 
       {/* ── Add Staff Modal ── */}
