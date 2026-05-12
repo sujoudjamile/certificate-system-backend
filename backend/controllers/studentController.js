@@ -92,7 +92,6 @@ const validateDegreeFlow = async (studentId, degree, major, excludeRecordId = nu
     [degree]
   );
 
-  // If the degree isn't in the DB yet (migration edge case) fall back to safe defaults
   const requestedLevel = degreeRows.length > 0 ? degreeRows[0].level : "undergraduate";
 
   // Professional and undergraduate degrees have no prerequisites
@@ -100,20 +99,33 @@ const validateDegreeFlow = async (studentId, degree, major, excludeRecordId = nu
     return null;
   }
 
-  // ── 2. Fetch all existing records for this student ──
+  // ── 2. Fetch all existing INTERNAL records for this student ──
   const params = [studentId];
   let query = `
     SELECT sr.degree, sr.major,
            COALESCE(d.level, 'undergraduate') AS degree_level
     FROM student_records sr
-    LEFT JOIN degrees d ON d.name = sr.degree
+    LEFT JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
     WHERE sr.student_id = ?
   `;
   if (excludeRecordId) {
     query += " AND sr.id != ?";
     params.push(excludeRecordId);
   }
-  const [allRecords] = await db.query(query, params);
+  const [internalRecords] = await db.query(query, params);
+
+  // ── 2b. Fetch verified EXTERNAL (foreign) degrees for this student ──
+  const [externalRecords] = await db.query(
+  `SELECT ed.degree, ed.major,
+          COALESCE(d.level, 'undergraduate') AS degree_level
+   FROM external_degrees ed
+   LEFT JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = ed.degree
+   WHERE ed.student_id = ?`,
+  [studentId]
+);
+
+  // ── 2c. Combine both sources ──
+  const allRecords = [...internalRecords, ...externalRecords];
 
   const hasUndergrad = allRecords.some(r => r.degree_level === "undergraduate");
   const hasGrad      = allRecords.some(r => r.degree_level === "graduate");
@@ -294,6 +306,22 @@ const addStudent = async (req, res) => {
     const degreeError = await validateDegreeFlow(studentId, degree, major);
     if (degreeError) {
       return res.status(400).json({ message: degreeError });
+    }
+
+
+    // ── STEP 6B — Prevent adding if same degree+major exists in external_degrees ──
+    const [extDuplicate] = await db.query(
+      `SELECT id FROM external_degrees
+       WHERE student_id = ?
+         AND degree     = ?
+         AND major      COLLATE utf8mb4_general_ci = ?`,
+      [studentId, degree, major]
+    );
+    if (extDuplicate.length > 0) {
+      return res.status(400).json({
+        message: `This student already has an external ${degree} in "${major}" registered. ` +
+                 `A duplicate internal record cannot be created.`,
+      });
     }
 
     // ── STEP 7 — Prevent duplicate degree+major at any university ──
@@ -554,6 +582,25 @@ const updateStudent = async (req, res) => {
       );
       if (degreeError) {
         return res.status(400).json({ message: degreeError });
+      }
+    }
+
+
+
+    // ── STEP 5B — If program changed, check external_degrees for duplicate ──
+    if (programChanged) {
+      const [extDuplicate] = await db.query(
+        `SELECT id FROM external_degrees
+         WHERE student_id = ?
+           AND degree     = ?
+           AND major      COLLATE utf8mb4_general_ci = ?`,
+        [studentId, newDegree, newMajor]
+      );
+      if (extDuplicate.length > 0) {
+        return res.status(400).json({
+          message: `This student already has an external ${newDegree} in "${newMajor}" registered. ` +
+                   `Cannot update the record to duplicate it.`,
+        });
       }
     }
 

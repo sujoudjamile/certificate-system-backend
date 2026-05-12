@@ -8,6 +8,7 @@ import {
   CheckCircle2, XCircle, Clock, FileText, X,
   TrendingUp, Zap, Eye, AlertOctagon, BookOpen,
   Layers, Trash2, ChevronDown, Search, Calendar,
+  Globe, Upload, Award,
 } from "lucide-react";
 import "./Admin.css";
 
@@ -115,7 +116,7 @@ function UniNavbar({ universityName, adminName, pendingCount, onSignOut, onBellC
 }
 
 // ─────────────────────────────────────────────────────────────
-// TAB BAR
+// TAB BAR  (added "external" tab)
 // ─────────────────────────────────────────────────────────────
 function TabBar({ activeTab, onChange, staffCount, pendingFlagsCount, revokedCount }) {
   return (
@@ -128,6 +129,14 @@ function TabBar({ activeTab, onChange, staffCount, pendingFlagsCount, revokedCou
         onClick={() => onChange("staff")}>
         <Users size={16} /> Staff ({staffCount})
       </button>
+      <button className={`uni-tab ${activeTab === "programs" ? "active" : ""}`}
+        onClick={() => onChange("programs")}>
+        <Layers size={16} /> Programs
+      </button>
+      <button className={`uni-tab ${activeTab === "schedule" ? "active" : ""}`}
+        onClick={() => onChange("schedule")}>
+        <Clock size={16} /> Schedule
+      </button>
       <button className={`uni-tab ${activeTab === "alerts" ? "active" : ""}`}
         onClick={() => onChange("alerts")}>
         <AlertTriangle size={16} /> Fraud Alerts
@@ -135,16 +144,17 @@ function TabBar({ activeTab, onChange, staffCount, pendingFlagsCount, revokedCou
           <span className="tab-badge">{pendingFlagsCount}</span>
         )}
       </button>
-      <button className={`uni-tab ${activeTab === "schedule" ? "active" : ""}`}
-        onClick={() => onChange("schedule")}>
-        <Clock size={16} /> Schedule
-      </button>
+      
       <button className={`uni-tab ${activeTab === "revoked" ? "active" : ""}`}
         onClick={() => onChange("revoked")}>
         <XCircle size={16} /> Revoked Certs
         {revokedCount > 0 && (
           <span className="tab-badge">{revokedCount}</span>
         )}
+      </button>
+      <button className={`uni-tab ${activeTab === "external" ? "active" : ""}`}
+        onClick={() => onChange("external")}>
+        <Globe size={16} /> Foreign Degrees
       </button>
     </div>
   );
@@ -523,14 +533,12 @@ function AddProgramModal({ onClose, onSubmit }) {
   const [fetchingDeg,    setFetchingDeg]    = useState(false);
   const [error,          setError]          = useState("");
 
-  // Group majors by field
   useEffect(() => {
     axios.get(`${API}/program/majors`, authHeader())
       .then(r => setAllMajors(r.data.majors || []))
       .catch(() => setError("Failed to load majors."));
   }, []);
 
-  // When major changes → fetch allowed degrees
   useEffect(() => {
     if (!selectedMajor) { setAllowedDegrees([]); setSelectedDegree(""); return; }
     setFetchingDeg(true);
@@ -546,7 +554,6 @@ function AddProgramModal({ onClose, onSubmit }) {
     m.field.toLowerCase().includes(majorSearch.toLowerCase())
   );
 
-  // Group filtered majors by field
   const grouped = filteredMajors.reduce((acc, m) => {
     if (!acc[m.field]) acc[m.field] = [];
     acc[m.field].push(m);
@@ -596,7 +603,6 @@ function AddProgramModal({ onClose, onSubmit }) {
           </div>
         )}
 
-        {/* Major search */}
         <div style={{ marginBottom: 14 }}>
           <label className="prog-form-label">Search Major</label>
           <div style={{ position: "relative" }}>
@@ -611,7 +617,6 @@ function AddProgramModal({ onClose, onSubmit }) {
           </div>
         </div>
 
-        {/* Major picker */}
         <div style={{ marginBottom: 16 }}>
           <label className="prog-form-label">Select Major</label>
           <div className="prog-major-picker">
@@ -636,7 +641,6 @@ function AddProgramModal({ onClose, onSubmit }) {
           </div>
         </div>
 
-        {/* Degree picker */}
         <div style={{ marginBottom: 20 }}>
           <label className="prog-form-label">
             Select Degree
@@ -680,7 +684,6 @@ function AddProgramModal({ onClose, onSubmit }) {
           )}
         </div>
 
-        {/* Summary */}
         {selectedMajor && selectedDegree && (() => {
           const maj = allMajors.find(m => String(m.id) === String(selectedMajor));
           const deg = allowedDegrees.find(d => String(d.id) === String(selectedDegree));
@@ -722,21 +725,15 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [expanded, setExpanded] = useState({});
 
-  // Group by field
   const grouped = programs
-  .filter(p => p.is_active) // 👈 IMPORTANT FIX
-  .reduce((acc, p) => {
-    if (!acc[p.major_id]) {
-      acc[p.major_id] = {
-        major_name: p.major_name,
-        field: p.field,
-        degrees: []
-      };
-    }
-
-    acc[p.major_id].degrees.push(p);
-    return acc;
-  }, {});
+    .filter(p => p.is_active)
+    .reduce((acc, p) => {
+      if (!acc[p.major_id]) {
+        acc[p.major_id] = { major_name: p.major_name, field: p.field, degrees: [] };
+      }
+      acc[p.major_id].degrees.push(p);
+      return acc;
+    }, {});
 
   const handleRemove = async (programId) => {
     setRemoving(programId);
@@ -756,7 +753,6 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
 
   return (
     <div>
-      {/* Confirm remove overlay */}
       {confirmRemove && (
         <div className="modal-overlay">
           <div className="modal-box" style={{ maxWidth: 400 }}>
@@ -772,11 +768,9 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", margin: "0 0 18px" }}>
               <strong style={{ color: "white" }}>{confirmRemove.degree_name}</strong> in{" "}
               <strong style={{ color: "white" }}>{confirmRemove.major_name}</strong> will be deactivated.
-              Existing student records are not affected.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => handleRemove(confirmRemove.id)}
+              <button onClick={() => handleRemove(confirmRemove.id)}
                 disabled={removing === confirmRemove.id}
                 style={{
                   flex: 1, padding: "12px", borderRadius: 12, border: "none",
@@ -797,15 +791,12 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
         </div>
       )}
 
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h3 style={{ color: "white", margin: 0, fontSize: 18, fontWeight: 800 }}>
-            University Programs
-          </h3>
+          <h3 style={{ color: "white", margin: 0, fontSize: 18, fontWeight: 800 }}>University Programs</h3>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
-              {programs.filter(p => p.is_active).length} active program
-              {programs.filter(p => p.is_active).length !== 1 ? "s" : ""} across your university
+            {programs.filter(p => p.is_active).length} active program
+            {programs.filter(p => p.is_active).length !== 1 ? "s" : ""} across your university
           </p>
         </div>
         <button onClick={onAdd} className="staff-add-btn">
@@ -815,82 +806,44 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
 
       {programs.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0" }}>
-          <div style={{ width: 72, height: 72, borderRadius: 20,
-            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 16px" }}>
-            <Layers size={32} color="rgba(255,255,255,0.2)" />
-          </div>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 15, margin: "0 0 8px" }}>
-            No programs activated yet
-          </p>
-          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 13, margin: 0 }}>
-            Add programs that your university offers so staff can enrol students
-          </p>
+          <Layers size={32} color="rgba(255,255,255,0.2)" style={{ marginBottom: 16 }} />
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 15, margin: "0 0 8px" }}>No programs activated yet</p>
         </div>
       ) : (
         Object.entries(grouped).map(([majorId, data]) => (
-  <div key={majorId} className="prog-major-card">
-
-    {/* MAJOR HEADER */}
-    <div
-      className="prog-major-header"
-      onClick={() =>
-        setExpanded(prev => ({
-          ...prev,
-          [majorId]: !prev[majorId]
-        }))
-      }
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Layers size={14} />
-        <div>
-          <p className="prog-major-title">{data.major_name}</p>
-          <p className="prog-major-sub">{data.field}</p>
-        </div>
-      </div>
-
-      <span className="prog-expand-btn">
-        {expanded[majorId] ? "Hide" : "Show"}
-      </span>
-    </div>
-
-    {/* DEGREE LIST */}
-    {expanded[majorId] && (
-      <div className="prog-degree-list">
-        {data.degrees.map(d => {
-          const lc = LEVEL_COLOR[d.level] || LEVEL_COLOR.undergraduate;
-
-          return (
-            <div key={d.id} className="prog-degree-row">
-              <span
-                className="prog-degree-pill"
-                style={{
-                  background: lc.bg,
-                  border: `1px solid ${lc.border}`,
-                  color: lc.text
-                }}
-              >
-                {d.degree_name}
-              </span>
-
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
-                {d.level}
-              </span>
-
-              <button
-                className="prog-remove-btn"
-                onClick={() => setConfirmRemove(d)}
-              >
-                <Trash2 size={13} />
-              </button>
+          <div key={majorId} className="prog-major-card">
+            <div className="prog-major-header"
+              onClick={() => setExpanded(prev => ({ ...prev, [majorId]: !prev[majorId] }))}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Layers size={14} />
+                <div>
+                  <p className="prog-major-title">{data.major_name}</p>
+                  <p className="prog-major-sub">{data.field}</p>
+                </div>
+              </div>
+              <span className="prog-expand-btn">{expanded[majorId] ? "Hide" : "Show"}</span>
             </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-))
+            {expanded[majorId] && (
+              <div className="prog-degree-list">
+                {data.degrees.map(d => {
+                  const lc = LEVEL_COLOR[d.level] || LEVEL_COLOR.undergraduate;
+                  return (
+                    <div key={d.id} className="prog-degree-row">
+                      <span className="prog-degree-pill"
+                        style={{ background: lc.bg, border: `1px solid ${lc.border}`, color: lc.text }}>
+                        {d.degree_name}
+                      </span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{d.level}</span>
+                      <button className="prog-remove-btn" onClick={() => setConfirmRemove(d)}>
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))
       )}
     </div>
   );
@@ -901,7 +854,7 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
 // ─────────────────────────────────────────────────────────────
 function RevokedCertsTab({ addToast }) {
   const [certificates, setCertificates] = useState([]);
-  const [loading,      setLoading]      = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const fetchRevoked = async () => {
     setLoading(true);
@@ -919,17 +872,11 @@ function RevokedCertsTab({ addToast }) {
 
   const handleAllowReissue = async (certId, certNumber) => {
     try {
-      await axios.patch(
-        `${API}/certificates/${certId}/allow-reissue`,
-        {},
-        authHeader()
-      );
-      addToast("success", "Reissue Allowed",
-        `Staff can now issue a new certificate to replace ${certNumber}.`);
+      await axios.patch(`${API}/certificates/${certId}/allow-reissue`, {}, authHeader());
+      addToast("success", "Reissue Allowed", `Staff can now issue a new certificate to replace ${certNumber}.`);
       fetchRevoked();
     } catch (err) {
-      addToast("info", "Error",
-        err.response?.data?.message || "Failed to allow reissue.");
+      addToast("info", "Error", err.response?.data?.message || "Failed to allow reissue.");
     }
   };
 
@@ -944,14 +891,10 @@ function RevokedCertsTab({ addToast }) {
 
   if (certificates.length === 0) {
     return (
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "center", gap: 16, padding: "60px 0",
-      }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: 16, padding: "60px 0" }}>
         <CheckCircle2 size={64} color="#2dce8a" />
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 16, margin: 0 }}>
-          No revoked certificates
-        </p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 16, margin: 0 }}>No revoked certificates</p>
       </div>
     );
   }
@@ -963,12 +906,8 @@ function RevokedCertsTab({ addToast }) {
           <div className="flag-card__header">
             <div className="flag-card__left">
               <span className="flag-rule-tag" style={{
-                background: "rgba(239,68,68,0.14)",
-                color: "#ff7f7a",
-                border: "1px solid rgba(239,68,68,0.25)",
-              }}>
-                REVOKED
-              </span>
+                background: "rgba(239,68,68,0.14)", color: "#ff7f7a", border: "1px solid rgba(239,68,68,0.25)",
+              }}>REVOKED</span>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
                 <FileText size={16} color="#e10600" />
                 <span className="flag-card__student">{cert.student_name}</span>
@@ -979,34 +918,25 @@ function RevokedCertsTab({ addToast }) {
               </p>
               <p className="flag-card__meta">
                 {cert.university_name} · Issued by{" "}
-                <strong style={{ color: "rgba(255,255,255,0.7)" }}>
-                  {cert.issued_by}
-                </strong>
+                <strong style={{ color: "rgba(255,255,255,0.7)" }}>{cert.issued_by}</strong>
               </p>
             </div>
-
             <div className="flag-card__right">
               <span className="flag-status-badge" style={{
                 color: cert.allow_reissue ? "#22c55e" : "#ef4444",
-                background: cert.allow_reissue
-                  ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
-                border: cert.allow_reissue
-                  ? "1px solid rgba(34,197,94,0.30)" : "1px solid rgba(239,68,68,0.30)",
+                background: cert.allow_reissue ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                border: cert.allow_reissue ? "1px solid rgba(34,197,94,0.30)" : "1px solid rgba(239,68,68,0.30)",
               }}>
                 {cert.allow_reissue ? "✅ Reissue Allowed" : "🔒 Reissue Blocked"}
               </span>
             </div>
           </div>
-
-          {/* Revoke reasons */}
           {cert.revoke_reason && (
             <div className="flag-reason-box">
               <p className="flag-reason-label">REVOKE REASON</p>
               <p className="flag-reason-text">{cert.revoke_reason}</p>
             </div>
           )}
-
-          {/* Student & cert details */}
           <div className="flag-details" style={{ marginTop: 12 }}>
             <div className="flag-details__grid">
               <div className="flag-detail-item">
@@ -1021,9 +951,7 @@ function RevokedCertsTab({ addToast }) {
               </div>
               <div className="flag-detail-item">
                 <span className="flag-detail-label">Issued At</span>
-                <span className="flag-detail-value">
-                  {new Date(cert.created_at).toLocaleString()}
-                </span>
+                <span className="flag-detail-value">{new Date(cert.created_at).toLocaleString()}</span>
               </div>
               <div className="flag-detail-item">
                 <span className="flag-detail-label">Certificate ID</span>
@@ -1031,16 +959,11 @@ function RevokedCertsTab({ addToast }) {
               </div>
             </div>
           </div>
-
-          {/* Action button */}
           {!cert.allow_reissue && (
             <div className="flag-actions">
-              <button
-                className="flag-dismiss-btn"
-                onClick={() => handleAllowReissue(cert.id, cert.cert_number)}
-              >
-                <CheckCircle2 size={14} />
-                Allow Reissue
+              <button className="flag-dismiss-btn"
+                onClick={() => handleAllowReissue(cert.id, cert.cert_number)}>
+                <CheckCircle2 size={14} /> Allow Reissue
               </button>
             </div>
           )}
@@ -1087,7 +1010,7 @@ function AddStaffModal({ onClose, onSubmit }) {
         </div>
         <div className="modal-body">
           <label>Name</label>
-          <input value={name}  onChange={(e) => setName(e.target.value)} />
+          <input value={name} onChange={(e) => setName(e.target.value)} />
           <label>Email</label>
           <input value={email} onChange={(e) => setEmail(e.target.value)} />
           <button className="modal-submit" onClick={handleSubmit} disabled={loading}>
@@ -1104,18 +1027,13 @@ function AddStaffModal({ onClose, onSubmit }) {
 // ─────────────────────────────────────────────────────────────
 function StaffCards({ staffList, handleResend }) {
   if (!staffList || staffList.length === 0) {
-    return (
-      <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", padding: 40 }}>
-        No staff added yet.
-      </p>
-    );
+    return <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", padding: 40 }}>No staff added yet.</p>;
   }
   return (
     <div className="admin-cards">
       {staffList.map((staff) => {
         const now     = new Date();
-        const expired = staff.verification_expires &&
-          new Date(staff.verification_expires) < now;
+        const expired = staff.verification_expires && new Date(staff.verification_expires) < now;
         const status  = staff.is_verified ? "Active" : expired ? "Inactive" : "Pending";
         return (
           <div key={staff.id} className={`admin-card ${status === "Inactive" ? "expired" : ""}`}>
@@ -1152,21 +1070,15 @@ function QuickActions({ onAddStaff, onViewAlerts, onManagePrograms }) {
     <div className="uni-panel">
       <h3 className="uni-panel__title">Quick Actions</h3>
       <button className="uni-action" onClick={onAddStaff}>
-        <span className="uni-action__left">
-          <Plus size={18} className="uni-action__icon--plus" /> Add New Staff Member
-        </span>
+        <span className="uni-action__left"><Plus size={18} className="uni-action__icon--plus" /> Add New Staff Member</span>
         <ChevronRight size={18} />
       </button>
       <button className="uni-action" onClick={onManagePrograms}>
-        <span className="uni-action__left">
-          <Layers size={18} className="uni-action__icon--plus" /> Manage Programs
-        </span>
+        <span className="uni-action__left"><Layers size={18} className="uni-action__icon--plus" /> Manage Programs</span>
         <ChevronRight size={18} />
       </button>
       <button className="uni-action" onClick={onViewAlerts}>
-        <span className="uni-action__left">
-          <AlertTriangle size={18} className="uni-action__icon--alert" /> Review Fraud Alerts
-        </span>
+        <span className="uni-action__left"><AlertTriangle size={18} className="uni-action__icon--alert" /> Review Fraud Alerts</span>
         <ChevronRight size={18} />
       </button>
     </div>
@@ -1174,9 +1086,8 @@ function QuickActions({ onAddStaff, onViewAlerts, onManagePrograms }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SCHEDULE SUMMARY WIDGET (shown on Overview tab)
+// SCHEDULE SUMMARY WIDGET
 // ─────────────────────────────────────────────────────────────
-const DAY_NAMES_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const DAY_NAMES_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 function ScheduleSummaryWidget({ data, onManage }) {
@@ -1184,40 +1095,24 @@ function ScheduleSummaryWidget({ data, onManage }) {
   const { schedule, holidays } = data;
   if (!schedule) return null;
 
-  const workDays   = Array.isArray(schedule.work_days) ? schedule.work_days : [];
-  const workStart  = schedule.work_start?.slice(0, 5) || "08:00";
-  const workEnd    = schedule.work_end?.slice(0, 5)   || "17:00";
+  const workDays  = Array.isArray(schedule.work_days) ? schedule.work_days : [];
+  const workStart = schedule.work_start?.slice(0, 5) || "08:00";
+  const workEnd   = schedule.work_end?.slice(0, 5)   || "17:00";
 
-  // Format time to 12h
   const fmt12 = (t) => {
     const [h, m] = t.split(":").map(Number);
     const period = h >= 12 ? "PM" : "AM";
-    const hour   = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2,"0")} ${period}`;
+    return `${h % 12 || 12}:${String(m).padStart(2,"0")} ${period}`;
   };
 
-  // Shift duration
   const [sh, sm] = workStart.split(":").map(Number);
   const [eh, em] = workEnd.split(":").map(Number);
   const shiftMins = (eh * 60 + em) - (sh * 60 + sm);
   const shiftLabel = shiftMins > 0
     ? `${Math.floor(shiftMins/60)}h${shiftMins%60>0?" "+shiftMins%60+"m":""}` : "";
 
-  // Upcoming holidays (next 3)
-  const today = new Date().toISOString().split("T")[0];
-  const upcoming = holidays
-    .filter(h => String(h.holiday_date).split("T")[0] >= today)
-    .slice(0, 3);
-
-  // Next holiday countdown
-  const nextHoliday = upcoming[0];
-  let daysUntil = null;
-  if (nextHoliday) {
-    const p = String(nextHoliday.holiday_date).split("T")[0].split("-");
-    const hDate = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]));
-    const now   = new Date(); now.setHours(0,0,0,0);
-    daysUntil = Math.round((hDate - now) / 86400000);
-  }
+  const today    = new Date().toISOString().split("T")[0];
+  const upcoming = holidays.filter(h => String(h.holiday_date).split("T")[0] >= today).slice(0, 3);
 
   return (
     <div className="uni-panel sched-summary-widget">
@@ -1230,15 +1125,8 @@ function ScheduleSummaryWidget({ data, onManage }) {
           fontSize:12, color:"rgba(255,255,255,0.4)", background:"transparent",
           border:"1px solid rgba(255,255,255,0.08)", borderRadius:8, padding:"4px 10px",
           cursor:"pointer", fontFamily:"var(--font)", transition:"all 0.2s",
-        }}
-          onMouseEnter={e => e.currentTarget.style.color="white"}
-          onMouseLeave={e => e.currentTarget.style.color="rgba(255,255,255,0.4)"}
-        >
-          Manage →
-        </button>
+        }}>Manage →</button>
       </div>
-
-      {/* Hours row */}
       <div className="sched-sum-hours-row">
         <div className="sched-sum-time-block">
           <span className="sched-sum-time-label">START</span>
@@ -1254,20 +1142,12 @@ function ScheduleSummaryWidget({ data, onManage }) {
           <span className="sched-sum-time-val">{fmt12(workEnd)}</span>
         </div>
       </div>
-
-      {/* Day chips */}
       <div className="sched-sum-days">
         {DAY_NAMES_SHORT.map((label, i) => (
-          <span key={i} className={`sched-sum-day ${workDays.includes(i) ? "active" : ""}`}>
-            {label}
-          </span>
+          <span key={i} className={`sched-sum-day ${workDays.includes(i) ? "active" : ""}`}>{label}</span>
         ))}
       </div>
-
-      {/* Timezone */}
       <p className="sched-sum-tz">🌍 {schedule.timezone || "Asia/Beirut"}</p>
-
-      {/* Upcoming holidays */}
       {upcoming.length > 0 && (
         <div className="sched-sum-holidays">
           <p className="sched-sum-hol-title">
@@ -1277,21 +1157,13 @@ function ScheduleSummaryWidget({ data, onManage }) {
           {upcoming.map(h => {
             const parts = String(h.holiday_date).split("T")[0].split("-");
             const mon   = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(parts[1],10)-1];
-            const d     = parseInt(parts[2], 10);
             return (
               <div key={h.id} className="sched-sum-hol-row">
-                <span className="sched-sum-hol-date">{mon} {d}</span>
+                <span className="sched-sum-hol-date">{mon} {parseInt(parts[2], 10)}</span>
                 <span className="sched-sum-hol-label">{h.label}</span>
               </div>
             );
           })}
-          {nextHoliday && daysUntil !== null && (
-            <p className="sched-sum-countdown">
-              {daysUntil === 0 ? "🎉 Holiday today!" :
-               daysUntil === 1 ? "⏳ Holiday tomorrow" :
-               `⏳ Next holiday in ${daysUntil} days`}
-            </p>
-          )}
         </div>
       )}
     </div>
@@ -1304,7 +1176,6 @@ function ScheduleSummaryWidget({ data, onManage }) {
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function HolidayRow({ holiday, onDelete, deletingId, past }) {
-  // Parse "YYYY-MM-DD" directly to avoid timezone-shift NaN issues
   const parts = String(holiday.holiday_date).split("T")[0].split("-");
   const year  = parts[0];
   const month = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][parseInt(parts[1], 10) - 1] || "?";
@@ -1318,16 +1189,10 @@ function HolidayRow({ holiday, onDelete, deletingId, past }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p className="sched-holiday-label">{holiday.label}</p>
-        {holiday.added_by && (
-          <p className="sched-holiday-by">Added by {holiday.added_by}</p>
-        )}
+        {holiday.added_by && <p className="sched-holiday-by">Added by {holiday.added_by}</p>}
       </div>
-      <button
-        className="sched-delete-btn"
-        onClick={() => onDelete(holiday.id, holiday.label)}
-        disabled={deletingId === holiday.id}
-        title="Remove holiday"
-      >
+      <button className="sched-delete-btn" onClick={() => onDelete(holiday.id, holiday.label)}
+        disabled={deletingId === holiday.id}>
         {deletingId === holiday.id
           ? <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} />
           : <Trash2 size={12} />}
@@ -1374,21 +1239,13 @@ function ScheduleTab({ addToast }) {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const toggleDay = (day) => {
-    setWorkDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
-    );
-  };
+  const toggleDay = (day) => setWorkDays(prev =>
+    prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
+  );
 
   const handleSaveSchedule = async () => {
-    if (workDays.length === 0) {
-      addToast("info", "Validation", "Select at least one working day.");
-      return;
-    }
-    if (workStart >= workEnd) {
-      addToast("info", "Validation", "End time must be after start time.");
-      return;
-    }
+    if (workDays.length === 0) { addToast("info", "Validation", "Select at least one working day."); return; }
+    if (workStart >= workEnd)  { addToast("info", "Validation", "End time must be after start time."); return; }
     setSaving(true);
     try {
       await axios.put(`${API}/schedule`, { work_start: workStart, work_end: workEnd, work_days: workDays, timezone }, authHeader());
@@ -1402,10 +1259,7 @@ function ScheduleTab({ addToast }) {
   };
 
   const handleAddHoliday = async () => {
-    if (!holidayDate || !holidayLabel.trim()) {
-      addToast("info", "Validation", "Date and label are required.");
-      return;
-    }
+    if (!holidayDate || !holidayLabel.trim()) { addToast("info", "Validation", "Date and label are required."); return; }
     setAddingHoliday(true);
     try {
       await axios.post(`${API}/schedule/holidays`, { holiday_date: holidayDate, label: holidayLabel.trim() }, authHeader());
@@ -1432,20 +1286,17 @@ function ScheduleTab({ addToast }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>
-        <RefreshCw size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
-        <p style={{ margin: 0 }}>Loading schedule...</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>
+      <RefreshCw size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
+      <p style={{ margin: 0 }}>Loading schedule...</p>
+    </div>
+  );
 
   const today = new Date().toISOString().split("T")[0];
   const upcomingHolidays = holidays.filter(h => h.holiday_date >= today);
   const pastHolidays     = holidays.filter(h => h.holiday_date <  today);
 
-  // Shift duration preview
   let shiftLabel = "";
   if (workStart && workEnd && workStart < workEnd) {
     const [sh, sm] = workStart.split(":").map(Number);
@@ -1456,51 +1307,36 @@ function ScheduleTab({ addToast }) {
 
   return (
     <div className="sched-layout">
-
-      {/* ── LEFT: Working Hours ── */}
       <div className="sched-col">
         <div className="sched-panel">
           <div className="sched-panel__header">
             <div className="sched-panel__icon"><Clock size={18} /></div>
             <div>
               <h3 className="sched-panel__title">Working Hours</h3>
-              <p className="sched-panel__sub">
-                {schedule?.configured ? "Custom schedule active" : "Using system defaults"}
-              </p>
+              <p className="sched-panel__sub">{schedule?.configured ? "Custom schedule active" : "Using system defaults"}</p>
             </div>
           </div>
-
           <div className="sched-time-row">
             <div className="sched-field">
               <label className="sched-label">Start Time</label>
-              <input type="time" className="sched-time-input" value={workStart}
-                onChange={e => setWorkStart(e.target.value)} />
+              <input type="time" className="sched-time-input" value={workStart} onChange={e => setWorkStart(e.target.value)} />
             </div>
             <div className="sched-time-sep">→</div>
             <div className="sched-field">
               <label className="sched-label">End Time</label>
-              <input type="time" className="sched-time-input" value={workEnd}
-                onChange={e => setWorkEnd(e.target.value)} />
+              <input type="time" className="sched-time-input" value={workEnd} onChange={e => setWorkEnd(e.target.value)} />
             </div>
           </div>
-
-          {shiftLabel && (
-            <div className="sched-duration-pill">⏱ {shiftLabel}</div>
-          )}
-
+          {shiftLabel && <div className="sched-duration-pill">⏱ {shiftLabel}</div>}
           <div style={{ marginTop: 22 }}>
             <label className="sched-label">Working Days</label>
             <div className="sched-days-row">
               {DAY_LABELS.map((label, i) => (
-                <button key={i}
-                  className={`sched-day-btn ${workDays.includes(i) ? "active" : ""}`}
-                  onClick={() => toggleDay(i)}>
-                  {label}
-                </button>
+                <button key={i} className={`sched-day-btn ${workDays.includes(i) ? "active" : ""}`}
+                  onClick={() => toggleDay(i)}>{label}</button>
               ))}
             </div>
           </div>
-
           <div style={{ marginTop: 18 }}>
             <label className="sched-label">Timezone</label>
             <select className="sched-select" value={timezone} onChange={e => setTimezone(e.target.value)}>
@@ -1514,26 +1350,20 @@ function ScheduleTab({ addToast }) {
               <option value="Asia/Riyadh">Asia/Riyadh</option>
             </select>
           </div>
-
           <button className="sched-save-btn" onClick={handleSaveSchedule} disabled={saving}>
-            {saving
-              ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
-              : <CheckCircle2 size={14} />}
+            {saving ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle2 size={14} />}
             {saving ? "Saving..." : "Save Schedule"}
           </button>
         </div>
-
         <div className="sched-note-box">
           <Shield size={14} style={{ color: "#60b0ff", flexShrink: 0, marginTop: 1 }} />
           <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>
             <strong style={{ color: "#60b0ff" }}>Fraud Detection uses this.</strong>{" "}
-            Certificates issued outside working hours or on holidays automatically trigger the{" "}
-            <em>Off-Hours</em> fraud rule.
+            Certificates issued outside working hours or on holidays automatically trigger the <em>Off-Hours</em> fraud rule.
           </p>
         </div>
       </div>
 
-      {/* ── RIGHT: Holidays ── */}
       <div className="sched-col">
         <div className="sched-panel">
           <div className="sched-panel__header">
@@ -1552,9 +1382,8 @@ function ScheduleTab({ addToast }) {
               <div style={{ display: "flex", gap: 10 }}>
                 <div className="sched-field" style={{ flex: "0 0 150px" }}>
                   <label className="sched-label">Date</label>
-                  <input type="date" className="sched-date-input"
-                    value={holidayDate} onChange={e => setHolidayDate(e.target.value)}
-                    min={today} />
+                  <input type="date" className="sched-date-input" value={holidayDate}
+                    onChange={e => setHolidayDate(e.target.value)} min={today} />
                 </div>
                 <div className="sched-field" style={{ flex: 1 }}>
                   <label className="sched-label">Label</label>
@@ -1565,8 +1394,7 @@ function ScheduleTab({ addToast }) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button className="sched-save-btn" style={{ flex: 1 }}
-                  onClick={handleAddHoliday} disabled={addingHoliday}>
+                <button className="sched-save-btn" style={{ flex: 1 }} onClick={handleAddHoliday} disabled={addingHoliday}>
                   {addingHoliday ? "Adding..." : "Add Holiday"}
                 </button>
                 <button className="sched-cancel-btn"
@@ -1580,33 +1408,20 @@ function ScheduleTab({ addToast }) {
           {holidays.length === 0 ? (
             <div className="sched-holidays-empty">
               <Calendar size={40} color="rgba(255,255,255,0.12)" />
-              <p style={{ margin: "8px 0 4px", color: "rgba(255,255,255,0.35)", fontSize: 14 }}>
-                No holidays configured
-              </p>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", margin: 0 }}>
-                Add dates when the university is closed
-              </p>
+              <p style={{ margin: "8px 0 4px", color: "rgba(255,255,255,0.35)", fontSize: 14 }}>No holidays configured</p>
             </div>
           ) : (
             <>
               {upcomingHolidays.length > 0 && (
                 <>
                   <p className="sched-group-label">Upcoming ({upcomingHolidays.length})</p>
-                  {upcomingHolidays.map(h => (
-                    <HolidayRow key={h.id} holiday={h} onDelete={handleDeleteHoliday}
-                      deletingId={deletingId} />
-                  ))}
+                  {upcomingHolidays.map(h => <HolidayRow key={h.id} holiday={h} onDelete={handleDeleteHoliday} deletingId={deletingId} />)}
                 </>
               )}
               {pastHolidays.length > 0 && (
                 <>
-                  <p className="sched-group-label" style={{ marginTop: 18 }}>
-                    Past ({pastHolidays.length})
-                  </p>
-                  {pastHolidays.slice(0, 5).map(h => (
-                    <HolidayRow key={h.id} holiday={h} onDelete={handleDeleteHoliday}
-                      deletingId={deletingId} past />
-                  ))}
+                  <p className="sched-group-label" style={{ marginTop: 18 }}>Past ({pastHolidays.length})</p>
+                  {pastHolidays.slice(0, 5).map(h => <HolidayRow key={h.id} holiday={h} onDelete={handleDeleteHoliday} deletingId={deletingId} past />)}
                   {pastHolidays.length > 5 && (
                     <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", textAlign: "center", margin: "10px 0 0" }}>
                       +{pastHolidays.length - 5} more past holidays
@@ -1618,6 +1433,821 @@ function ScheduleTab({ addToast }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXTERNAL DEGREES TAB  ← NEW
+// ═══════════════════════════════════════════════════════════════
+function ExternalDegreesTab({ addToast }) {
+  // ── Phase 1: national ID lookup ──
+  const [nationalId,     setNationalId]     = useState("");
+  const [lookupLoading,  setLookupLoading]  = useState(false);
+  const [lookupDone,     setLookupDone]     = useState(false);
+  const [studentFound,   setStudentFound]   = useState(false);
+  const [studentInfo,    setStudentInfo]    = useState(null);
+
+  // ── Phase 1b: if not found ──
+  const [newFullName, setNewFullName] = useState("");
+  const [newDob,      setNewDob]      = useState("");
+
+  // ── Phase 2: degree details ──
+  const [allMajors,      setAllMajors]      = useState([]);
+  const [allowedDegrees, setAllowedDegrees] = useState([]);
+  const [selectedMajor,  setSelectedMajor]  = useState(null);
+  const [selectedDegree, setSelectedDegree] = useState(null);
+  const [majorSearch,    setMajorSearch]    = useState("");
+  const [fetchingDeg,    setFetchingDeg]    = useState(false);
+
+  const [institution,    setInstitution]    = useState("");
+  const [country,        setCountry]        = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
+  const [notes,          setNotes]          = useState("");
+  const [docFile,        setDocFile]        = useState(null);
+
+  const [checklist, setChecklist] = useState({
+    ministry_stamp:   false,
+    original_seen:    false,
+    photo_id_matched: false,
+  });
+  const allChecked = Object.values(checklist).every(Boolean);
+
+  const [loading,  setLoading]  = useState(false);
+  const [success,  setSuccess]  = useState(null);
+  const [fetchErr, setFetchErr] = useState("");
+
+  // ── All external degrees list ──
+  const [showList,      setShowList]      = useState(false);
+  const [allExtDegrees, setAllExtDegrees] = useState([]);
+  const [listLoading,   setListLoading]   = useState(false);
+  const [deletingId,    setDeletingId]    = useState(null);
+  const [listSearch,    setListSearch]    = useState("");
+
+  const ALLOWED_LEVELS = ["undergraduate", "graduate"];
+
+  // fetch majors once
+  useEffect(() => {
+    axios.get(`${API}/program/majors`, authHeader())
+      .then(r => setAllMajors(r.data.majors || []))
+      .catch(() => setFetchErr("Failed to load majors list."));
+  }, []);
+
+  // when major changes → load degrees
+  useEffect(() => {
+    if (!selectedMajor) { setAllowedDegrees([]); setSelectedDegree(null); return; }
+    setFetchingDeg(true);
+    setSelectedDegree(null);
+    axios.get(`${API}/program/majors/${selectedMajor.id}/degrees`, authHeader())
+      .then(r => {
+        const filtered = (r.data.degrees || []).filter(d => ALLOWED_LEVELS.includes(d.level));
+        setAllowedDegrees(filtered);
+      })
+      .catch(() => setFetchErr("Failed to load degrees."))
+      .finally(() => setFetchingDeg(false));
+  }, [selectedMajor]);
+
+  const filtered = allMajors.filter(m =>
+    m.name.toLowerCase().includes(majorSearch.toLowerCase()) ||
+    m.field.toLowerCase().includes(majorSearch.toLowerCase())
+  );
+  const grouped = filtered.reduce((acc, m) => {
+    if (!acc[m.field]) acc[m.field] = [];
+    acc[m.field].push(m);
+    return acc;
+  }, {});
+
+  // ── Fetch all external degrees ──
+  const fetchAllExtDegrees = async () => {
+    setListLoading(true);
+    try {
+      const res = await axios.get(`${API}/external-degrees/`, authHeader());
+      setAllExtDegrees(res.data.external_degrees || []);
+    } catch (err) {
+      addToast("info", "Error", "Failed to load external degrees.");
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const handleToggleList = () => {
+    if (!showList) fetchAllExtDegrees();
+    setShowList(v => !v);
+  };
+
+  // ── Delete external degree ──
+  const handleDelete = async (id, label) => {
+    if (!window.confirm(`Delete external degree: ${label}?`)) return;
+    setDeletingId(id);
+    try {
+      await axios.delete(`${API}/external-degrees/${id}`, authHeader());
+      addToast("success", "Deleted", `"${label}" has been removed.`);
+      setAllExtDegrees(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      addToast("info", "Error", err.response?.data?.message || "Failed to delete.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // ── Phase 1: lookup ──
+  const handleLookup = async () => {
+    if (!nationalId.trim()) {
+      addToast("info", "Required", "Please enter a national ID.");
+      return;
+    }
+    setLookupLoading(true);
+    setFetchErr("");
+    try {
+      const res = await axios.get(
+        `${API}/external-degrees/lookup/${nationalId.trim()}`,
+        authHeader()
+      );
+      setStudentFound(res.data.found);
+      setStudentInfo(res.data.student || null);
+      setLookupDone(true);
+    } catch (err) {
+      addToast("info", "Error", "Failed to look up national ID.");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const resetAll = () => {
+    setNationalId(""); setLookupDone(false); setStudentFound(false);
+    setStudentInfo(null); setNewFullName(""); setNewDob("");
+    setSelectedMajor(null); setSelectedDegree(null); setMajorSearch("");
+    setInstitution(""); setCountry(""); setGraduationYear(""); setNotes("");
+    setDocFile(null);
+    setChecklist({ ministry_stamp: false, original_seen: false, photo_id_matched: false });
+    setSuccess(null);
+  };
+
+  // ── Phase 2: submit ──
+  const handleSubmit = async () => {
+    if (!selectedDegree || !selectedMajor || !institution || !country || !graduationYear) {
+      addToast("info", "Incomplete Form", "Please fill in all required fields.");
+      return;
+    }
+    if (!studentFound && (!newFullName.trim() || !newDob)) {
+      addToast("info", "Required", "Please provide the student's full name and date of birth.");
+      return;
+    }
+    const year = parseInt(graduationYear, 10);
+    if (isNaN(year) || year < 1950 || year > new Date().getFullYear()) {
+      addToast("info", "Invalid Year", "Please enter a valid graduation year.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("national_id",     nationalId.trim());
+      formData.append("degree",          selectedDegree.name);
+      formData.append("major",           selectedMajor.name);
+      formData.append("institution",     institution);
+      formData.append("country",         country);
+      formData.append("graduation_year", graduationYear);
+      if (!studentFound) {
+        formData.append("full_name",    newFullName.trim());
+        formData.append("date_of_birth", newDob);
+      }
+      if (notes)   formData.append("notes", notes);
+      if (docFile) formData.append("document", docFile);
+
+      await axios.post(`${API}/external-degrees`, formData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      setSuccess(`${selectedDegree.name} in ${selectedMajor.name} from ${institution}`);
+      addToast("success", "Foreign Degree Added", "The external degree has been registered successfully.");
+      if (showList) fetchAllExtDegrees();
+      resetAll();
+    } catch (err) {
+      addToast("info", "Error", err.response?.data?.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Filtered list for search ──
+  const filteredList = allExtDegrees.filter(d =>
+    d.student_name.toLowerCase().includes(listSearch.toLowerCase()) ||
+    d.national_id.toLowerCase().includes(listSearch.toLowerCase()) ||
+    d.major.toLowerCase().includes(listSearch.toLowerCase()) ||
+    d.institution.toLowerCase().includes(listSearch.toLowerCase())
+  );
+
+  const inp = {
+    width: "100%", boxSizing: "border-box",
+    padding: "12px 14px", borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.05)", color: "white",
+    fontSize: 14, fontFamily: "var(--font)", outline: "none",
+  };
+  const lbl = {
+    display: "block", marginBottom: 7,
+    fontSize: 12, fontWeight: 700, letterSpacing: "0.4px",
+    color: "rgba(255,255,255,0.55)", textTransform: "uppercase",
+  };
+  const card = {
+    background: "rgba(18,32,64,0.88)",
+    border: "1px solid rgba(42,65,110,0.55)",
+    borderRadius: 18, padding: "22px 22px", marginBottom: 18,
+  };
+
+  return (
+    <div>
+      {/* ── Header row ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <h3 style={{ color: "white", margin: 0, fontSize: 20, fontWeight: 800 }}>
+            Register Foreign Degree
+          </h3>
+          <p style={{ margin: "5px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+            Verify a foreign qualification so the student can enrol in graduate programs.
+          </p>
+        </div>
+        <button
+          onClick={handleToggleList}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 18px", borderRadius: 12,
+            border: `1px solid ${showList ? "rgba(96,176,255,0.45)" : "rgba(255,255,255,0.12)"}`,
+            background: showList ? "rgba(96,176,255,0.12)" : "rgba(255,255,255,0.04)",
+            color: showList ? "#7cc0ff" : "rgba(255,255,255,0.6)",
+            fontSize: 13, fontWeight: 700, cursor: "pointer",
+            fontFamily: "var(--font)", transition: "all 0.2s",
+          }}>
+          <Globe size={15} />
+          {showList ? "Hide List" : "View All Foreign Degrees"}
+          {allExtDegrees.length > 0 && showList && (
+            <span style={{
+              background: "rgba(96,176,255,0.20)", color: "#7cc0ff",
+              borderRadius: 20, padding: "1px 8px", fontSize: 11, fontWeight: 800,
+            }}>
+              {allExtDegrees.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ══════════════════════════════════════════
+          ALL EXTERNAL DEGREES LIST
+      ══════════════════════════════════════════ */}
+      {showList && (
+        <div style={{ ...card, marginBottom: 32 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: "rgba(96,176,255,0.12)", border: "1px solid rgba(96,176,255,0.22)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Globe size={16} style={{ color: "#60b0ff" }} />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "white" }}>
+                  All Registered Foreign Degrees
+                </h4>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.35)" }}>
+                  {allExtDegrees.length} record{allExtDegrees.length !== 1 ? "s" : ""} total
+                </p>
+              </div>
+            </div>
+            <button onClick={fetchAllExtDegrees} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "7px 12px", borderRadius: 9,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "transparent", color: "rgba(255,255,255,0.4)",
+              fontSize: 12, cursor: "pointer", fontFamily: "var(--font)",
+            }}>
+              <RefreshCw size={12} /> Refresh
+            </button>
+          </div>
+
+          {/* Search */}
+          <div style={{ position: "relative", marginBottom: 16 }}>
+            <Search size={14} style={{
+              position: "absolute", left: 12, top: "50%",
+              transform: "translateY(-50%)", color: "rgba(255,255,255,0.35)",
+              pointerEvents: "none",
+            }} />
+            <input
+              style={{ ...inp, paddingLeft: 36 }}
+              placeholder="Search by name, national ID, major, institution…"
+              value={listSearch}
+              onChange={e => setListSearch(e.target.value)}
+            />
+          </div>
+
+          {/* List */}
+          {listLoading ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.35)" }}>
+              <RefreshCw size={24} style={{ marginBottom: 10, opacity: 0.5 }} />
+              <p style={{ margin: 0, fontSize: 13 }}>Loading…</p>
+            </div>
+          ) : filteredList.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <Globe size={36} color="rgba(255,255,255,0.12)" style={{ marginBottom: 12 }} />
+              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, margin: 0 }}>
+                {allExtDegrees.length === 0 ? "No foreign degrees registered yet" : "No results match your search"}
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {filteredList.map(d => {
+                const degLevel  = d.degree === "Master" ? "graduate" : "undergraduate";
+                const lc        = LEVEL_COLOR[degLevel] || LEVEL_COLOR.undergraduate;
+                return (
+                  <div key={d.id} style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    padding: "14px 16px", borderRadius: 14,
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    transition: "all 0.2s",
+                  }}>
+                    {/* Degree badge */}
+                    <span style={{
+                      padding: "5px 12px", borderRadius: 999, flexShrink: 0,
+                      background: lc.bg, border: `1px solid ${lc.border}`,
+                      color: lc.text, fontSize: 11, fontWeight: 800,
+                    }}>
+                      {d.degree}
+                    </span>
+
+                    {/* Main info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "white" }}>
+                          {d.student_name}
+                        </span>
+                        <span style={{
+                          fontSize: 11, color: "rgba(255,255,255,0.35)",
+                          fontFamily: "var(--mono)",
+                        }}>
+                          {d.national_id}
+                        </span>
+                      </div>
+                      <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                        {d.major} · {d.institution}, {d.country} · {d.graduation_year}
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontSize: 11, color: "rgba(255,255,255,0.28)" }}>
+                        Verified by {d.verified_by_name} · {new Date(d.verified_at).toLocaleDateString("en-GB")}
+                      </p>
+                    </div>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={() => handleDelete(d.id, `${d.degree} in ${d.major} — ${d.student_name}`)}
+                      disabled={deletingId === d.id}
+                      style={{
+                        width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                        border: "1px solid rgba(239,68,68,0.20)",
+                        background: "rgba(239,68,68,0.07)",
+                        color: "#ef4444", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", transition: "all 0.2s",
+                        opacity: deletingId === d.id ? 0.5 : 1,
+                      }}>
+                      {deletingId === d.id
+                        ? <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} />
+                        : <Trash2 size={12} />}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Success banner ── */}
+      {success && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "14px 18px", borderRadius: 14, marginBottom: 24,
+          background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)",
+        }}>
+          <CheckCircle2 size={18} style={{ color: "#22c55e" }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 13, color: "#22c55e", fontWeight: 700 }}>
+              Registered: {success}
+            </p>
+          </div>
+          <button onClick={() => setSuccess(null)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)" }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* ════ PHASE 1: National ID Lookup ════ */}
+      <div style={card}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: "rgba(96,176,255,0.12)", border: "1px solid rgba(96,176,255,0.22)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Search size={16} style={{ color: "#60b0ff" }} />
+          </div>
+          <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "white" }}>
+            Step 1 — Find Student by National ID
+          </h4>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={lbl}>National ID *</label>
+            <input
+              style={inp}
+              value={nationalId}
+              placeholder="Enter national ID number"
+              onChange={e => {
+                setNationalId(e.target.value);
+                setLookupDone(false);
+                setStudentInfo(null);
+                setStudentFound(false);
+              }}
+              onKeyDown={e => e.key === "Enter" && handleLookup()}
+              disabled={lookupLoading}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <button
+              onClick={handleLookup}
+              disabled={lookupLoading || !nationalId.trim()}
+              style={{
+                padding: "12px 20px", borderRadius: 12, border: "none",
+                background: "var(--accent)", color: "white", fontWeight: 700,
+                fontSize: 14, cursor: "pointer", fontFamily: "var(--font)",
+                opacity: !nationalId.trim() ? 0.5 : 1,
+              }}>
+              {lookupLoading ? "Searching…" : "Search"}
+            </button>
+          </div>
+        </div>
+
+        {/* Student found */}
+        {lookupDone && studentFound && studentInfo && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            marginTop: 14, padding: "12px 16px", borderRadius: 12,
+            background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.25)",
+          }}>
+            <CheckCircle2 size={18} style={{ color: "#22c55e", flexShrink: 0 }} />
+            <div>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "white" }}>
+                {studentInfo.full_name}
+              </p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                DOB: {studentInfo.date_of_birth} · Internal ID: {studentInfo.id}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Student not found */}
+        {lookupDone && !studentFound && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{
+              display: "flex", gap: 10, padding: "12px 14px", borderRadius: 12, marginBottom: 16,
+              background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.22)",
+            }}>
+              <AlertTriangle size={16} style={{ color: "#f59e0b", flexShrink: 0, marginTop: 1 }} />
+              <p style={{ margin: 0, fontSize: 13, color: "rgba(255,200,100,0.85)" }}>
+                Student not found. Please enter their details to register them.
+              </p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={lbl}>Full Name *</label>
+                <input style={inp} value={newFullName} placeholder="e.g. Ahmad Khalil"
+                  onChange={e => setNewFullName(e.target.value)} />
+              </div>
+              <div>
+                <label style={lbl}>Date of Birth *</label>
+                <input style={{ ...inp, colorScheme: "dark" }} type="date" value={newDob}
+                  onChange={e => setNewDob(e.target.value)} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ════ PHASE 2: Degree Details ════ */}
+      {lookupDone && (
+        <>
+          <div style={{
+            display: "flex", gap: 12, padding: "14px 18px", borderRadius: 14, marginBottom: 18,
+            background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.22)",
+          }}>
+            <AlertTriangle size={18} style={{ color: "#f59e0b", flexShrink: 0, marginTop: 1 }} />
+            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,200,100,0.85)", lineHeight: 1.65 }}>
+              You are manually verifying a foreign degree.{" "}
+              <strong style={{ color: "#f59e0b" }}>Your name will be recorded as the verifier.</strong>
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+
+            {/* LEFT: Major + Degree */}
+            <div style={card}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <BookOpen size={16} style={{ color: "#818cf8" }} />
+                </div>
+                <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "white" }}>
+                  Step 2 — Select Major &amp; Degree
+                </h4>
+              </div>
+
+              {fetchErr && (
+                <div style={{
+                  padding: "9px 12px", borderRadius: 10, marginBottom: 14,
+                  background: "rgba(232,24,14,0.09)", border: "1px solid rgba(232,24,14,0.22)",
+                  color: "#ff9090", fontSize: 12,
+                }}>
+                  {fetchErr}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 14, position: "relative" }}>
+                <label style={lbl}>Search Major</label>
+                <Search size={14} style={{
+                  position: "absolute", left: 12, bottom: 14,
+                  color: "rgba(255,255,255,0.35)", pointerEvents: "none",
+                }} />
+                <input
+                  style={{ ...inp, paddingLeft: 36 }}
+                  placeholder="e.g. Computer Science…"
+                  value={majorSearch}
+                  onChange={e => setMajorSearch(e.target.value)}
+                />
+              </div>
+
+              <div style={{
+                maxHeight: 220, overflowY: "auto", padding: "12px 14px", borderRadius: 14,
+                background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)",
+                marginBottom: 16,
+              }}>
+                {Object.keys(grouped).length === 0 ? (
+                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0, textAlign: "center" }}>
+                    {allMajors.length === 0 ? "Loading…" : "No majors match"}
+                  </p>
+                ) : Object.entries(grouped).map(([field, majors]) => (
+                  <div key={field} style={{ marginBottom: 10 }}>
+                    <p style={{
+                      margin: "0 0 6px", fontSize: 10, fontWeight: 800,
+                      color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.6px",
+                    }}>{field}</p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {majors.map(m => {
+                        const isSel = selectedMajor?.id === m.id;
+                        return (
+                          <button key={m.id}
+                            onClick={() => setSelectedMajor(isSel ? null : m)}
+                            style={{
+                              padding: "7px 12px", borderRadius: 999,
+                              border: `1px solid ${isSel ? "rgba(96,176,255,0.5)" : "rgba(255,255,255,0.08)"}`,
+                              background: isSel ? "rgba(96,176,255,0.16)" : "rgba(255,255,255,0.03)",
+                              color: isSel ? "#7cc0ff" : "rgba(255,255,255,0.65)",
+                              fontSize: 12, fontWeight: 700, cursor: "pointer",
+                              fontFamily: "var(--font)", transition: "all 0.18s",
+                            }}>
+                            {m.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <label style={lbl}>
+                  Degree *
+                  <span style={{ marginLeft: 8, fontWeight: 400, textTransform: "none",
+                    color: "rgba(255,255,255,0.3)", fontSize: 11 }}>
+                    Bachelor or Master only
+                  </span>
+                </label>
+                {!selectedMajor ? (
+                  <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Select a major first</p>
+                ) : fetchingDeg ? (
+                  <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Loading…</p>
+                ) : allowedDegrees.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 13, color: "rgba(255,100,100,0.6)" }}>
+                    No Bachelor or Master degrees available for this major
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {allowedDegrees.map(d => {
+                      const lc  = LEVEL_COLOR[d.level] || LEVEL_COLOR.undergraduate;
+                      const sel = selectedDegree?.id === d.id;
+                      return (
+                        <button key={d.id}
+                          onClick={() => setSelectedDegree(sel ? null : d)}
+                          style={{
+                            padding: "9px 18px", borderRadius: 22, cursor: "pointer",
+                            border: `1px solid ${sel ? lc.text : lc.border}`,
+                            background: sel ? lc.bg : "transparent",
+                            color: sel ? lc.text : "rgba(255,255,255,0.55)",
+                            fontSize: 13, fontWeight: 700, fontFamily: "var(--font)",
+                          }}>
+                          {d.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {selectedMajor && selectedDegree && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "12px 14px", borderRadius: 12, marginTop: 14,
+                  background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.20)",
+                }}>
+                  <CheckCircle2 size={14} style={{ color: "#22c55e" }} />
+                  <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.8)" }}>
+                    <strong style={{ color: "white" }}>{selectedDegree.name}</strong>{" "}
+                    in <strong style={{ color: "white" }}>{selectedMajor.name}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT: Institution + Upload + Submit */}
+            <div>
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.22)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Globe size={16} style={{ color: "#22c55e" }} />
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "white" }}>
+                    Step 3 — Institution Details
+                  </h4>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={lbl}>Institution Name *</label>
+                  <input style={inp} value={institution} placeholder="e.g. Cairo University"
+                    onChange={e => setInstitution(e.target.value)} />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                  <div>
+                    <label style={lbl}>Country *</label>
+                    <input style={inp} value={country} placeholder="e.g. Egypt"
+                      onChange={e => setCountry(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Graduation Year *</label>
+                    <input style={inp} type="number" value={graduationYear}
+                      placeholder={`e.g. ${new Date().getFullYear() - 2}`}
+                      min="1950" max={new Date().getFullYear()}
+                      onChange={e => setGraduationYear(e.target.value)} />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={lbl}>Notes (optional)</label>
+                  <textarea
+                    style={{ ...inp, resize: "vertical", lineHeight: 1.55 }}
+                    rows={3} value={notes} placeholder="Ministry stamp reference, etc."
+                    onChange={e => setNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Upload */}
+              <div style={{ ...card }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.22)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Upload size={16} style={{ color: "#f59e0b" }} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "white" }}>
+                      Document (optional)
+                    </h4>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                      PDF or image, max 10 MB
+                    </p>
+                  </div>
+                </div>
+                <label style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  padding: "20px 16px", borderRadius: 12, cursor: "pointer",
+                  border: `2px dashed ${docFile ? "rgba(34,197,94,0.40)" : "rgba(255,255,255,0.10)"}`,
+                  background: docFile ? "rgba(34,197,94,0.05)" : "rgba(255,255,255,0.02)",
+                }}>
+                  {docFile ? (
+                    <>
+                      <CheckCircle2 size={24} style={{ color: "#22c55e" }} />
+                      <p style={{ margin: 0, fontSize: 13, color: "#22c55e", fontWeight: 700 }}>{docFile.name}</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={24} style={{ color: "rgba(255,255,255,0.2)" }} />
+                      <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>Click to upload</p>
+                    </>
+                  )}
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                    style={{ display: "none" }}
+                    onChange={e => setDocFile(e.target.files[0] || null)} />
+                </label>
+                {docFile && (
+                  <button onClick={() => setDocFile(null)} style={{
+                    marginTop: 10, width: "100%", padding: "8px", borderRadius: 10,
+                    border: "1px solid rgba(239,68,68,0.20)", background: "rgba(239,68,68,0.06)",
+                    color: "#ef4444", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)",
+                  }}>
+                    Remove file
+                  </button>
+                )}
+              </div>
+
+              {/* Checklist */}
+              <div style={{
+                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)",
+                borderRadius: 12, padding: 16, marginBottom: 16,
+              }}>
+                <p style={{ color: "#f59e0b", fontWeight: 700, margin: "0 0 12px", fontSize: 13 }}>
+                  ⚠️ Confirm all of the following:
+                </p>
+                {[
+                  { key: "ministry_stamp",   label: "I have seen the official Ministry of Education equivalency stamp" },
+                  { key: "original_seen",    label: "I have physically verified the original foreign diploma" },
+                  { key: "photo_id_matched", label: "I have matched the student's national ID with the diploma name" },
+                ].map(({ key, label }) => (
+                  <label key={key} style={{
+                    display: "flex", alignItems: "flex-start", gap: 10,
+                    color: "rgba(255,255,255,0.75)", fontSize: 13,
+                    marginBottom: 10, cursor: "pointer",
+                  }}>
+                    <input type="checkbox" checked={checklist[key]}
+                      onChange={e => setChecklist(prev => ({ ...prev, [key]: e.target.checked }))}
+                      style={{ marginTop: 2, accentColor: "#22c55e", width: 16, height: 16 }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              {/* Submit */}
+              <button
+                onClick={handleSubmit}
+                disabled={
+                  loading || !selectedMajor || !selectedDegree ||
+                  !institution || !country || !graduationYear || !allChecked ||
+                  (!studentFound && (!newFullName.trim() || !newDob))
+                }
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                  width: "100%", padding: "15px", borderRadius: 14, border: "none",
+                  background: "var(--accent)", color: "white", fontSize: 15, fontWeight: 700,
+                  fontFamily: "var(--font)", cursor: "pointer",
+                  boxShadow: "0 4px 18px rgba(232,24,14,0.28)", marginBottom: 10,
+                  opacity: (
+                    loading || !selectedMajor || !selectedDegree ||
+                    !institution || !country || !graduationYear || !allChecked ||
+                    (!studentFound && (!newFullName.trim() || !newDob))
+                  ) ? 0.5 : 1,
+                }}>
+                {loading
+                  ? <><RefreshCw size={16} style={{ animation: "spin 1s linear infinite" }} /> Registering…</>
+                  : <><Award size={16} /> Register Foreign Degree</>}
+              </button>
+
+              <button onClick={resetAll} style={{
+                width: "100%", padding: "11px", borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)",
+                color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer",
+                fontFamily: "var(--font)",
+              }}>
+                Start Over
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1640,7 +2270,7 @@ export default function UniversityAdmin() {
   const [loadingAdmin,    setLoadingAdmin]    = useState(true);
   const [loadingFlags,    setLoadingFlags]    = useState(false);
   const [toasts,          setToasts]          = useState([]);
-  const [revokedCerts, setRevokedCerts]       = useState([]);
+  const [revokedCerts,    setRevokedCerts]    = useState([]);
   const [overviewSchedule, setOverviewSchedule] = useState(null);
 
   const prevFlagCountRef = useRef(0);
@@ -1657,7 +2287,6 @@ export default function UniversityAdmin() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // ── Fetch current admin ──
   const fetchCurrentUser = async () => {
     try {
       const res = await axios.get(`${API}/users/me`, authHeader());
@@ -1669,7 +2298,6 @@ export default function UniversityAdmin() {
     }
   };
 
-  // ── Fetch staff ──
   const fetchStaff = useCallback(async (currentAdmin) => {
     if (!currentAdmin) return;
     try {
@@ -1689,7 +2317,6 @@ export default function UniversityAdmin() {
     }
   }, [navigate]);
 
-  // ── Fetch programs ──
   const fetchPrograms = useCallback(async () => {
     setLoadingPrograms(true);
     try {
@@ -1702,7 +2329,6 @@ export default function UniversityAdmin() {
     }
   }, []);
 
-  // ── Remove program ──
   const handleRemoveProgram = async (programId) => {
     try {
       await axios.delete(`${API}/program/university/${programId}`, authHeader());
@@ -1713,7 +2339,6 @@ export default function UniversityAdmin() {
     }
   };
 
-  // ── Fetch fraud flags ──
   const fetchFraudFlags = useCallback(async (silent = false) => {
     if (!silent) setLoadingFlags(true);
     try {
@@ -1734,7 +2359,6 @@ export default function UniversityAdmin() {
     }
   }, [addToast]);
 
-  // ── Fetch fraud stats ──
   const fetchFraudStats = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/fraud/stats`, authHeader());
@@ -1745,21 +2369,19 @@ export default function UniversityAdmin() {
   }, []);
 
   const fetchRevokedCerts = useCallback(async () => {
-  try {
-    const res = await axios.get(`${API}/certificates/revoked`, authHeader());
-    setRevokedCerts(res.data.certificates || []);
-  } catch (err) {
-    console.error("Failed to fetch revoked certs:", err);
-  }
-}, []);
+    try {
+      const res = await axios.get(`${API}/certificates/revoked`, authHeader());
+      setRevokedCerts(res.data.certificates || []);
+    } catch (err) {
+      console.error("Failed to fetch revoked certs:", err);
+    }
+  }, []);
 
-  // ── Start polling ──
   const startPolling = useCallback(() => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     pollIntervalRef.current = setInterval(() => fetchFraudFlags(true), 30_000);
   }, [fetchFraudFlags]);
 
-  // ── Dismiss flag ──
   const handleDismiss = async (flagId) => {
     try {
       await axios.patch(`${API}/fraud/${flagId}/dismiss`, {}, authHeader());
@@ -1771,7 +2393,6 @@ export default function UniversityAdmin() {
     }
   };
 
-  // ── Resolve flag ──
   const handleResolve = async (flagId, reviewNote) => {
     try {
       await axios.patch(`${API}/fraud/${flagId}/resolve`, { review_note: reviewNote }, authHeader());
@@ -1784,7 +2405,6 @@ export default function UniversityAdmin() {
     }
   };
 
-  // ── Resend activation ──
   const handleResend = async (email) => {
     try {
       const res = await fetch(`${API}/users/resend-activation`, {
@@ -1803,7 +2423,6 @@ export default function UniversityAdmin() {
     }
   };
 
-  // ── Lifecycle ──
   useEffect(() => { fetchCurrentUser(); }, []);
 
   useEffect(() => {
@@ -1812,9 +2431,8 @@ export default function UniversityAdmin() {
       fetchFraudFlags();
       fetchFraudStats();
       fetchPrograms();
-      fetchRevokedCerts();  // ← ADD THIS LINE
+      fetchRevokedCerts();
       startPolling();
-      // Fetch schedule summary for overview widget
       Promise.all([
         axios.get(`${API}/schedule`, authHeader()),
         axios.get(`${API}/schedule/holidays`, authHeader()),
@@ -1823,12 +2441,11 @@ export default function UniversityAdmin() {
           schedule: schedRes.data.schedule,
           holidays: holRes.data.holidays || [],
         });
-      }).catch(() => {}); // non-fatal
+      }).catch(() => {});
     }
     return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
   }, [admin]);
 
-  // ── Derived ──
   const pendingFlags     = fraudFlags.filter((f) => f.flag_status === "pending");
   const totalPendingRisk = pendingFlags.reduce((sum, f) => sum + parseFloat(f.risk_score || 0), 0);
   const activePrograms   = programs.filter(p => p.is_active);
@@ -1851,11 +2468,11 @@ export default function UniversityAdmin() {
 
       <main className="uni-body">
         <TabBar
-        activeTab={activeTab}
-        onChange={setActiveTab}
-        staffCount={staffList.length}
-        pendingFlagsCount={pendingFlags.length}
-        revokedCount={revokedCerts.filter(c => !c.allow_reissue).length}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          staffCount={staffList.length}
+          pendingFlagsCount={pendingFlags.length}
+          revokedCount={revokedCerts.filter(c => !c.allow_reissue).length}
         />
 
         {/* ── OVERVIEW TAB ── */}
@@ -1888,8 +2505,7 @@ export default function UniversityAdmin() {
         {/* ── STAFF TAB ── */}
         {activeTab === "staff" && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between",
-              alignItems: "center", marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h3 style={{ color: "white", margin: 0 }}>Staff Members ({staffList.length})</h3>
               <button onClick={() => setIsModalOpen(true)} className="staff-add-btn">
                 <Plus size={16} /> Add Staff
@@ -1912,8 +2528,7 @@ export default function UniversityAdmin() {
         {/* ── FRAUD ALERTS TAB ── */}
         {activeTab === "alerts" && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between",
-              alignItems: "center", marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h3 style={{ color: "white", margin: 0 }}>
                 Fraud Alerts
                 {pendingFlags.length > 0 && (
@@ -1934,29 +2549,27 @@ export default function UniversityAdmin() {
         )}
 
         {/* ── SCHEDULE TAB ── */}
-        {activeTab === "schedule" && (
-          <ScheduleTab addToast={addToast} />
-        )}
+        {activeTab === "schedule" && <ScheduleTab addToast={addToast} />}
 
         {/* ── REVOKED CERTS TAB ── */}
-{activeTab === "revoked" && (
-  <>
-    <div style={{
-      display: "flex", justifyContent: "space-between",
-      alignItems: "center", marginBottom: 20,
-    }}>
-      <h3 style={{ color: "white", margin: 0 }}>
-        Revoked Certificates
-        {revokedCerts.length > 0 && (
-          <span style={{ marginLeft: 10, fontSize: 14, color: "#ef4444", fontWeight: 400 }}>
-            ({revokedCerts.length} revoked)
-          </span>
+        {activeTab === "revoked" && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h3 style={{ color: "white", margin: 0 }}>
+                Revoked Certificates
+                {revokedCerts.length > 0 && (
+                  <span style={{ marginLeft: 10, fontSize: 14, color: "#ef4444", fontWeight: 400 }}>
+                    ({revokedCerts.length} revoked)
+                  </span>
+                )}
+              </h3>
+            </div>
+            <RevokedCertsTab addToast={addToast} />
+          </>
         )}
-      </h3>
-    </div>
-    <RevokedCertsTab addToast={addToast} />
-  </>
-)}
+
+        {/* ── FOREIGN DEGREES TAB ── */}
+        {activeTab === "external" && <ExternalDegreesTab addToast={addToast} />}
       </main>
 
       {/* ── Add Staff Modal ── */}

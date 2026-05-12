@@ -142,35 +142,44 @@ const issueCertificate = asyncHandler(async (req, res) => {
   const student           = studentRows[0];
   const student_record_id = student.record_id;
 
-  // ── Check no active cert exists ──
-  // ── Check no certificate exists (including revoked ones) ──
-// ── Check no active cert exists ──
-const [existingCert] = await db.query(
-  "SELECT id, status, allow_reissue FROM certificates WHERE student_record_id = ?",
-  [student_record_id]
-);
+  // ── Check existing certs for this student record ──
+  // Fetch ALL certs for this record so we handle the case where
+  // there is both a revoked cert (allow_reissue=1 or 2) AND a
+  // replacement cert (locked) from a previous successful reissue.
+  const [allCerts] = await db.query(
+    "SELECT id, status, allow_reissue FROM certificates WHERE student_record_id = ? ORDER BY id DESC",
+    [student_record_id]
+  );
 
-if (existingCert.length > 0) {
-  const cert = existingCert[0];
+  if (allCerts.length > 0) {
+    // If any cert is active (not revoked), block — already has a valid cert
+    const activeCert = allCerts.find(c => c.status !== "revoked");
+    if (activeCert) {
+      throw new AppError(
+        "A certificate already exists for this student record. Revoke it before issuing a new one.",
+        409
+      );
+    }
 
-  // Active certificate exists — cannot issue
-  if (cert.status !== "revoked") {
-    throw new AppError(
-      "A certificate already exists for this student record. Revoke it before issuing a new one.",
-      409
-    );
+    // All certs are revoked — check the most recent one's allow_reissue flag
+    const latestRevoked = allCerts[0]; // ORDER BY id DESC so this is the newest
+
+    if (latestRevoked.allow_reissue === 0) {
+      throw new AppError(
+        "This student's certificate was revoked. Contact your university admin to allow reissue.",
+        403
+      );
+    }
+
+    if (latestRevoked.allow_reissue === 2) {
+      throw new AppError(
+        "This student's certificate was revoked and has already been reissued once. No further reissues are permitted.",
+        403
+      );
+    }
+
+    // allow_reissue === 1 → fall through and issue normally ✅
   }
-
-  // Revoked but admin has NOT allowed reissue
-  if (cert.status === "revoked" && cert.allow_reissue === 0) {
-    throw new AppError(
-      "This student's certificate was revoked. Contact your university admin to allow reissue.",
-      403
-    );
-  }
-
-  // If allow_reissue === 1 → fall through and issue normally ✅
-}
 
   // ── Fetch university ──
   const [univRows] = await db.query(
@@ -296,8 +305,21 @@ certificate_id:     insertResult.insertId,
       [certId]
     );
 
+
+    // ✅ Step 5b: Mark old revoked cert as reissued — INSIDE transaction, BEFORE commit
+await connection.query(
+  `UPDATE certificates
+   SET allow_reissue = 2
+   WHERE student_record_id = ? 
+     AND status = 'revoked' 
+     AND allow_reissue = 1
+     AND id != ?`,          // safety: don't touch the new cert
+  [student_record_id, certId]
+);
+
    // Step 6: Commit
     await connection.commit();
+    
  
     // ── Step 7: Run fraud detection (AFTER commit, non-blocking) ──
     // We run this after the transaction commits so:
@@ -392,6 +414,8 @@ try {
         : null,
     });
 
+   
+
   } catch (err) {
     await connection.rollback();
     console.error("issueCertificate transaction failed:", err.message);
@@ -399,6 +423,45 @@ try {
   } finally {
     connection.release();
   }
+});
+
+// GET /api/certificates/pending-reissue
+const getPendingReissue = asyncHandler(async (req, res) => {
+  const { university_id } = req.user;
+
+  
+
+  const [rows] = await db.query(
+    `SELECT 
+       c.id AS revoked_cert_id,
+       c.cert_number AS revoked_cert_number,
+       c.degree, c.major, c.GPA, c.graduation_date,
+       c.student_record_id,
+       c.created_at AS originally_issued_at,
+       sn.id AS student_id,
+       sn.full_name AS student_name,
+       sn.national_id,
+       sr.email, sr.phone, sr.student_code,
+       ff.reason AS revoke_reason,
+       ff.resolved_at AS revoked_at,
+       reviewer.name AS revoked_by_name,
+       al.description AS allow_reissue_note
+     FROM certificates c
+     JOIN students_new sn ON c.student_id = sn.id
+     JOIN student_records sr ON c.student_record_id = sr.id
+     LEFT JOIN fraud_flag ff ON ff.certificate_id = c.id 
+                             AND ff.status = 'resolved'
+     LEFT JOIN users reviewer ON ff.reviewed_by = reviewer.id
+     LEFT JOIN audit_log al ON al.certificate_id = c.id 
+                            AND al.action = 'ALLOW_REISSUE'
+     WHERE c.university_id = ?
+       AND c.status = 'revoked'
+       AND c.allow_reissue = 1
+     ORDER BY c.created_at DESC`,
+    [university_id]
+  );
+
+  return res.json({ status: "success", pending_reissues: rows });
 });
 
 /*
@@ -412,7 +475,7 @@ const getCertificates = asyncHandler(async (req, res) => {
   let query = `
     SELECT
       c.id, c.cert_number, c.degree, c.major, c.GPA, c.graduation_date,
-      c.status, c.created_at, c.certification_hash, c.qr_code,
+      c.status, c.allow_reissue, c.created_at, c.certification_hash, c.qr_code,
       sn.full_name   AS student_name,
       sn.national_id,
       u.name         AS university_name,
@@ -897,8 +960,87 @@ const allowReissue = asyncHandler(async (req, res) => {
   });
 });
 
+
+/*
+==================================
+REQUEST REISSUE (Staff → Admin email)
+==================================
+Staff clicks "Contact Admin" on a revoked cert (allow_reissue = 0).
+Sends one email to the university admin requesting approval.
+*/
+const requestReissue = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { university_id, id: staffId, name: staffName } = req.user;
+
+  const [rows] = await db.query(
+    `SELECT c.id, c.cert_number, c.degree, c.major, c.status, c.allow_reissue,
+            sn.full_name AS student_name, sn.national_id,
+            u.name AS university_name, u.admin_id
+     FROM certificates c
+     JOIN students_new sn ON c.student_id    = sn.id
+     JOIN universities  u  ON c.university_id = u.id
+     WHERE c.id = ? AND c.university_id = ?`,
+    [id, university_id]
+  );
+
+  if (rows.length === 0)
+    throw new AppError("Certificate not found", 404);
+
+  const cert = rows[0];
+
+  if (cert.status !== "revoked")
+    throw new AppError("Only revoked certificates can be requested for reissue", 400);
+
+  if (cert.allow_reissue !== 0)
+    throw new AppError("This certificate is already approved or has been reissued", 400);
+
+  // Fetch admin email
+  const [adminRows] = await db.query(
+    "SELECT email, name FROM users WHERE id = ?",
+    [cert.admin_id]
+  );
+
+  if (adminRows.length === 0)
+    throw new AppError("University admin not found", 404);
+
+  const admin = adminRows[0];
+
+  await sendEmail({
+    to: admin.email,
+    subject: `Reissue Request — ${cert.cert_number}`,
+    html: `
+      <h2>Certificate Reissue Request</h2>
+      <p>A staff member has requested permission to reissue a revoked certificate.</p>
+      <table cellpadding="8" style="border-collapse:collapse;font-family:sans-serif">
+        <tr><td><strong>Staff:</strong></td><td>${staffName}</td></tr>
+        <tr><td><strong>Student:</strong></td><td>${cert.student_name} (NID: ${cert.national_id})</td></tr>
+        <tr><td><strong>Certificate:</strong></td><td>${cert.cert_number}</td></tr>
+        <tr><td><strong>Degree:</strong></td><td>${cert.degree} in ${cert.major}</td></tr>
+        <tr><td><strong>University:</strong></td><td>${cert.university_name}</td></tr>
+      </table>
+      <p style="margin-top:20px">Please log in to your admin dashboard to approve or deny this request.</p>
+    `,
+  });
+
+  await logAction({
+    user_id:        staffId,
+    university_id,
+    action:         "REQUEST_REISSUE",
+    description:    `Staff requested reissue for certificate ${cert.cert_number} (ID ${id})`,
+    status:         "success",
+    target_type:    "certificate",
+    target_id:      parseInt(id),
+    certificate_id: parseInt(id),
+    ip_address:     req.ip,
+  });
+
+  return res.json({ status: "success", message: "Reissue request sent to admin." });
+});
+
+
 module.exports = {
   issueCertificate,
+  getPendingReissue,
   getCertificates,
   getCertificateById,
   verifyCertificate,
@@ -908,4 +1050,5 @@ module.exports = {
   upload,
   getRevokedCertificates,
   allowReissue,
+  requestReissue,
 };

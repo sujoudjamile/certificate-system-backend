@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronUp, GraduationCap, BookOpen, Calendar,
   Mail, Phone, Pencil, Lock, User, Search,
 } from "lucide-react";
+import { CheckCircle2, RefreshCw } from "lucide-react";
 
 const API = "http://localhost:5000/api";
 const authHeader = () => ({
@@ -302,6 +303,325 @@ function SearchableDropdown({
   );
 }
 
+
+
+function PendingReissueTab({ addToast }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [issuingId, setIssuingId] = useState(null);
+  
+  
+
+  // GPA and graduation date are editable before reissue
+  const [editState, setEditState] = useState({});
+
+  useEffect(() => { fetchPending(); }, []);
+
+  const fetchPending = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/certificates/pending-reissue`, authHeader());
+      const data = res.data.pending_reissues || [];
+      // Initialize edit state for each item
+      const init = {};
+      data.forEach(item => {
+        init[item.revoked_cert_id] = {
+          GPA: item.GPA ?? "",
+          graduation_date: item.graduation_date?.split("T")[0] ?? "",
+        };
+      });
+      setEditState(init);
+      setItems(data);
+    } catch (err) {
+      addToast("info", "Error", "Failed to load pending reissues.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIssue = async (item) => {
+    const edit = editState[item.revoked_cert_id] || {};
+    if (!edit.graduation_date) {
+      addToast("info", "Required", "Please confirm the graduation date.");
+      return;
+    }
+    setIssuingId(item.revoked_cert_id);
+    try {
+      await axios.post(`${API}/certificates/`, {
+        student_id:      item.student_id,
+        degree:          item.degree,
+        major:           item.major,
+        GPA:             edit.GPA || null,
+        graduation_date: edit.graduation_date,
+      }, authHeader());
+      addToast("success", "Certificate Reissued", 
+        `New certificate issued for ${item.student_name}.`);
+      fetchPending();
+    } catch (err) {
+      addToast("info", "Error", 
+        err.response?.data?.message || "Failed to issue certificate.");
+    } finally {
+      setIssuingId(null);
+    }
+  };
+
+  if (loading) return (
+    <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>
+      Loading...
+    </div>
+  );
+
+  if (items.length === 0) return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
+      gap: 16, padding: "60px 0" }}>
+      <CheckCircle2 size={64} color="#2dce8a" />
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 16, margin: 0 }}>
+        No pending reissue requests
+      </p>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {items.map(item => {
+        const edit = editState[item.revoked_cert_id] || {};
+        return (
+          <div key={item.revoked_cert_id} style={{
+            background: "rgba(18,32,64,0.88)",
+            border: "1px solid rgba(245,158,11,0.30)",
+            borderRadius: 18, padding: "22px 24px",
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", 
+              alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <span style={{
+                  display: "inline-block", padding: "3px 10px", borderRadius: 20,
+                  background: "rgba(245,158,11,0.14)", color: "#f59e0b",
+                  border: "1px solid rgba(245,158,11,0.30)",
+                  fontSize: 11, fontWeight: 700, letterSpacing: "0.3px",
+                  marginBottom: 8,
+                }}>REISSUE APPROVED BY ADMIN</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <User size={16} color="#f59e0b" />
+                  <span style={{ fontSize: 18, fontWeight: 800, color: "white" }}>
+                    {item.student_name}
+                  </span>
+                </div>
+                <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)",
+                  fontFamily: "monospace" }}>
+                  ID {item.national_id} · {item.degree} in {item.major}
+                </p>
+              </div>
+              <div style={{
+                padding: "8px 14px", borderRadius: 10,
+                background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.25)",
+                fontSize: 12, color: "#ef4444", fontWeight: 600,
+              }}>
+                Previously: {item.revoked_cert_number}
+              </div>
+            </div>
+
+            {/* Revoke reason */}
+            {item.revoke_reason && (
+              <div style={{
+                padding: "10px 14px", borderRadius: 10, marginBottom: 16,
+                background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
+              }}>
+                <p style={{ margin: "0 0 3px", fontSize: 10, fontWeight: 700,
+                  color: "rgba(255,255,255,0.3)", letterSpacing: "0.8px",
+                  textTransform: "uppercase" }}>Original Revoke Reason</p>
+                <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.65)" }}>
+                  {item.revoke_reason}
+                </p>
+              </div>
+            )}
+
+            {/* Editable fields */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 11, fontWeight: 700,
+                  color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  GPA (optional)
+                </label>
+                <input
+                  type="number" min="2.0" max="4.0" step="0.01"
+                  value={edit.GPA ?? ""}
+                  onChange={e => setEditState(prev => ({
+                    ...prev,
+                    [item.revoked_cert_id]: { ...prev[item.revoked_cert_id], GPA: e.target.value }
+                  }))}
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    padding: "11px 13px", borderRadius: 11,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    background: "rgba(255,255,255,0.05)", color: "white",
+                    fontSize: 14, fontFamily: "var(--font)", outline: "none",
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 11, fontWeight: 700,
+                  color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Graduation Date *
+                </label>
+                <input
+                  type="date"
+                  value={edit.graduation_date ?? ""}
+                  onChange={e => setEditState(prev => ({
+                    ...prev,
+                    [item.revoked_cert_id]: { ...prev[item.revoked_cert_id], graduation_date: e.target.value }
+                  }))}
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    padding: "11px 13px", borderRadius: 11,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    background: "rgba(255,255,255,0.05)", color: "white",
+                    fontSize: 14, fontFamily: "var(--font)", outline: "none",
+                    colorScheme: "dark",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Issue button */}
+            <button
+              onClick={() => handleIssue(item)}
+              disabled={issuingId === item.revoked_cert_id}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                width: "100%", padding: "13px", borderRadius: 12, border: "none",
+                background: "var(--accent)", color: "white", fontSize: 14.5,
+                fontWeight: 700, fontFamily: "var(--font)", cursor: "pointer",
+                transition: "all 0.2s", boxShadow: "0 4px 16px rgba(232,24,14,0.28)",
+                opacity: issuingId === item.revoked_cert_id ? 0.6 : 1,
+              }}>
+              {issuingId === item.revoked_cert_id
+                ? <><RefreshCw size={15} style={{ animation: "spin 1s linear infinite" }} /> Issuing…</>
+                : <><GraduationCap size={15} /> Issue Replacement Certificate</>}
+            </button>
+
+           
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RevokedCertsTab({ certs, addToast }) {
+  // Only show certs NOT yet approved for reissue
+  const blocked = certs.filter(c => Number(c.allow_reissue) === 0);
+
+  // Track which cert IDs have already had a request sent this session
+  const [requested, setRequested] = useState(new Set());
+  const [loading,   setLoading]   = useState(null);
+
+  const handleContactAdmin = async (cert) => {
+    if (requested.has(cert.id) || loading === cert.id) return;
+    setLoading(cert.id);
+    try {
+      await axios.post(
+        `${API}/certificates/${cert.id}/request-reissue`,
+        {},
+        authHeader()
+      );
+      setRequested(prev => new Set([...prev, cert.id]));
+      addToast("success", "Request Sent", `Admin has been notified about ${cert.cert_number}.`);
+    } catch (err) {
+      addToast("info", "Error", err.response?.data?.message || "Failed to send request.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  if (blocked.length === 0) return (
+    <div style={{ textAlign: "center", padding: "60px 0",
+      color: "rgba(255,255,255,0.35)", fontSize: 15 }}>
+      No revoked certificates pending admin review.
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {blocked.map(c => {
+        const alreadySent = requested.has(c.id);
+        const isLoading   = loading === c.id;
+        return (
+          <div key={c.id} style={{
+            background: "rgba(18,32,64,0.88)",
+            border: "1px solid rgba(239,68,68,0.28)",
+            borderRadius: 18, padding: "20px 24px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "white", marginBottom: 4 }}>
+                {c.student_name}
+              </div>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
+                {c.degree} · {c.major}
+                {c.GPA ? ` · GPA ${parseFloat(c.GPA).toFixed(2)}` : ""}
+              </div>
+              <div style={{ fontFamily: "monospace", fontSize: 11,
+                color: "rgba(255,255,255,0.3)", marginBottom: 8 }}>
+                #{c.cert_number}
+              </div>
+              <span style={{
+                display: "inline-block", padding: "3px 11px", borderRadius: 999,
+                fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px",
+                background: "rgba(239,68,68,0.14)", color: "#f87171",
+                border: "1px solid rgba(239,68,68,0.30)",
+              }}>REVOKED</span>
+              {c.revoke_reason && (
+                <div style={{ marginTop: 8, fontSize: 12,
+                  color: "rgba(255,255,255,0.40)", fontStyle: "italic" }}>
+                  Reason: {c.revoke_reason}
+                </div>
+              )}
+            </div>
+
+            {/* Contact Admin button */}
+            <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 16 }}>
+              <button
+                onClick={() => handleContactAdmin(c)}
+                disabled={alreadySent || isLoading}
+                style={{
+                  padding: "10px 18px", borderRadius: 11, border: "none",
+                  fontWeight: 700, fontSize: 13, cursor: alreadySent ? "not-allowed" : "pointer",
+                  fontFamily: "var(--font)", transition: "all .2s",
+                  background: alreadySent
+                    ? "rgba(34,197,94,0.12)"
+                    : isLoading
+                    ? "rgba(255,255,255,0.07)"
+                    : "linear-gradient(135deg, #e8180e, #ff3b30)",
+                  color: alreadySent ? "#4ade80" : "white",
+                  border: alreadySent ? "1px solid rgba(34,197,94,0.30)" : "none",
+                  boxShadow: alreadySent || isLoading
+                    ? "none"
+                    : "0 4px 12px rgba(232,24,14,0.32)",
+                  opacity: isLoading ? 0.6 : 1,
+                  display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap",
+                }}
+              >
+                {alreadySent
+                  ? <><CheckCircle2 size={14}/> Request Sent</>
+                  : isLoading
+                  ? <><RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }}/> Sending…</>
+                  : <>✉ Contact Admin</>}
+              </button>
+              {alreadySent && (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)",
+                  marginTop: 5, textAlign: "center" }}>
+                  Admin notified
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 // ══════════════════════════════════════════════════════════════════════════════
 export default function Staff() {
   const navigate = useNavigate();
@@ -310,6 +630,7 @@ export default function Staff() {
   const [certs,    setCerts]    = useState([]);
   const [staff,    setStaff]    = useState(null);
   const [error,    setError]    = useState("");
+  const [certSubTab, setCertSubTab] = useState("active");
 
   // University programs (major+degree combos this uni offers)
   const [programs, setPrograms] = useState([]);
@@ -331,6 +652,14 @@ export default function Staff() {
 
   const [nidStatus, setNidStatus] = useState("idle");
   const nidTimer = useRef(null);
+
+
+  const [toasts, setToasts] = useState([]);
+  const addToast = (type, title, message) => {
+  const id = Date.now();
+  setToasts(prev => [...prev, { id, type, title, message }]);
+  setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+};
 
   const [studentForm, setStudentForm] = useState({
     name: "", student_id: "", email: "", phone: "",
@@ -741,30 +1070,92 @@ export default function Staff() {
           })}
         </div>
       ) : (
-        <div className="box">
-          <h3>Issued Certificates ({certs.length})</h3>
-          {certs.length === 0 ? (
-            <p className="empty">No certificates issued yet.</p>
-          ) : certs.map(c => (
-            <div key={c.id} className="card cert">
-              <div>
-                <h4>{c.student_name}</h4>
-                <p>{c.degree} · {c.major}{c.GPA ? ` · GPA ${parseFloat(c.GPA).toFixed(2)}` : ""}</p>
-                <p className="cert-number">#{c.cert_number}</p>
-                <span className={`cert-status cert-status--${c.status}`}>{c.status}</span>
-              </div>
-              <div className="cert-actions">
-                <button className="view" onClick={() => setQrViewCert(c)}>
-                  <QrCode size={14} style={{ marginRight:5 }}/>QR
-                </button>
-                <button className="view" onClick={() => downloadPdf(c.id, c.cert_number)}>
-                  <FileText size={14} style={{ marginRight:5 }}/>PDF
-                </button>
-              </div>
+  <div className="box">
+    {/* ── Cert sub-tabs ── */}
+    <div style={{
+      display: "flex", gap: 6, marginBottom: 24,
+      borderBottom: "1px solid rgba(255,255,255,0.08)",
+      paddingBottom: 16,
+    }}>
+      {[
+        { key: "active",  label: "Active Certificates",
+          count: certs.filter(c => c.status !== "revoked").length },
+        { key: "reissue", label: "Pending Reissue",
+          count: null },
+        { key: "revoked", label: "Revoked",
+          count: certs.filter(c => c.status === "revoked" && Number(c.allow_reissue) === 0).length },
+      ].map(sub => (
+        <button
+          key={sub.key}
+          onClick={() => setCertSubTab(sub.key)}
+          style={{
+            padding: "9px 18px", borderRadius: 999,
+            border: `1px solid ${certSubTab === sub.key ? "transparent" : "rgba(255,255,255,0.10)"}`,
+            background: certSubTab === sub.key
+              ? "linear-gradient(135deg, #e8180e, #ff3b30)"
+              : "rgba(255,255,255,0.05)",
+            color: certSubTab === sub.key ? "white" : "rgba(255,255,255,0.55)",
+            fontWeight: 700, fontSize: 13.5, cursor: "pointer",
+            fontFamily: "var(--font)",
+            boxShadow: certSubTab === sub.key ? "0 4px 14px rgba(232,24,14,0.38)" : "none",
+            transition: "all .2s",
+            display: "flex", alignItems: "center", gap: 7,
+          }}
+        >
+          {sub.label}
+          {sub.count !== null && (
+            <span style={{
+              background: certSubTab === sub.key
+                ? "rgba(255,255,255,0.22)"
+                : "rgba(255,255,255,0.10)",
+              borderRadius: 999, padding: "1px 8px",
+              fontSize: 11, fontWeight: 800,
+            }}>
+              {sub.count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+
+    {certSubTab === "active" && (
+      <>
+        <h3>Active Certificates ({certs.filter(c => c.status !== "revoked").length})</h3>
+        {certs.filter(c => c.status !== "revoked").length === 0 ? (
+          <p className="empty">No active certificates yet.</p>
+        ) : certs.filter(c => c.status !== "revoked").map(c => (
+          <div key={c.id} className="card cert">
+            <div>
+              <h4>{c.student_name}</h4>
+              <p>{c.degree} · {c.major}{c.GPA ? ` · GPA ${parseFloat(c.GPA).toFixed(2)}` : ""}</p>
+              <p className="cert-number">#{c.cert_number}</p>
+              <span className={`cert-status cert-status--${c.status}`}>{c.status}</span>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="cert-actions">
+              <button className="view" onClick={() => setQrViewCert(c)}>
+                <QrCode size={14} style={{ marginRight:5 }}/>QR
+              </button>
+              <button className="view" onClick={() => downloadPdf(c.id, c.cert_number)}>
+                <FileText size={14} style={{ marginRight:5 }}/>PDF
+              </button>
+            </div>
+          </div>
+        ))}
+      </>
+    )}
+
+    {certSubTab === "reissue" && (
+      <PendingReissueTab addToast={addToast} />
+    )}
+
+    {certSubTab === "revoked" && (
+  <RevokedCertsTab
+    certs={certs.filter(c => c.status === "revoked")}
+    addToast={addToast}
+  />
+)}
+  </div>
+)}
 
       {/* QR VIEWER */}
       {qrViewCert && (
@@ -1223,12 +1614,20 @@ export default function Staff() {
                 </label>
                 <input className="form-input" type="number" step="0.01" min="2" max="4"
                   placeholder="e.g. 3.75"
-                  value={certForm.gpa} onChange={e => setCF({ gpa: e.target.value })}/>
+                  value={certForm.gpa} onChange={e => {
+                       let val = e.target.value;
+                           if (val !== "") {
+                            const num = parseFloat(val);
+                              if (!isNaN(num)) {
+                                  if (num < 2) val = "2";
+                                  if (num > 4) val = "4";
+                                  }
+                    } setCF({ gpa: val });}}/>
               </div>
               <div className="form-group">
                 <label className="form-label">Graduation Date</label>
                 <input className="form-input" type="date"
-                  value={certForm.graduation_date} onChange={e => setCF({ graduation_date: e.target.value })}/>
+                  value={certForm.graduation_date} onChange={e =>setCF({ graduation_date: e.target.value })}/>
               </div>
             </div>
 

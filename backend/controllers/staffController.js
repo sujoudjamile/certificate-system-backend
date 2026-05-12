@@ -171,9 +171,9 @@ const getStaff = asyncHandler(async (req, res) => {
       un.name AS university_name
     FROM users u
     LEFT JOIN universities un ON u.university_id = un.id
-    WHERE u.role = 'staff'
+    WHERE u.role = 'staff' AND u.university_id=?
     ORDER BY u.is_verified ASC, u.created_at DESC
-  `);
+  `, [req.user.university_id]);
 
   res.json({
     status: "success",

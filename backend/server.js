@@ -15,6 +15,7 @@ const certificateRoutes = require("./routes/certificationRoutes");
 const fraudRoutes = require("./routes/fraudRoutes");
 const programRoutes=require("./routes/programRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
+const externalDegreeRoutes = require("./routes/externalDegreeRoutes");
 const { startCertRenewalScheduler } = require("./utils/certRenewal");
 const errorHandler = require("./middleware/errorHandler");
 const app = express();
@@ -71,6 +72,7 @@ app.use("/api/certificates", certificateRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/program",programRoutes);
 app.use("/api/schedule", scheduleRoutes);
+app.use("/api/external-degrees", externalDegreeRoutes);
 
 /*
 ==================================

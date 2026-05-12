@@ -6,6 +6,7 @@ const router  = express.Router();
 const {
   issueCertificate,
   getCertificates,
+  getPendingReissue,
   getCertificateById,
   verifyCertificate,
   verifyPdfUpload,
@@ -13,19 +14,24 @@ const {
   downloadCertificatePdf,
   upload,
   getRevokedCertificates,
+  requestReissue,
   allowReissue,
 } = require("../controllers/certificationController");
 
 const authenticateToken = require("../middleware/authMiddleware");
 const authorizeRoles    = require("../middleware/roleMiddleware");
 
-// PUBLIC — verify by cert_number (QR scan)
+// ── PUBLIC ────────────────────────────────────────────────────────────────────
+
+// Verify by cert_number (QR scan)
 router.get("/verify/:cert_number", verifyCertificate);
 
-// PUBLIC — verify by uploading the actual PDF file
+// Verify by uploading the actual PDF file
 router.post("/verify-pdf", upload.single("pdf"), verifyPdfUpload);
 
-// PROTECTED — issue certificate
+// ── COLLECTION ROUTES (no :id) ────────────────────────────────────────────────
+
+// Issue certificate
 router.post(
   "/",
   authenticateToken,
@@ -33,15 +39,7 @@ router.post(
   issueCertificate
 );
 
-// PROTECTED — get revoked certificates
-router.get(
-  "/revoked",
-  authenticateToken,
-  authorizeRoles("admin", "super_admin"),
-  getRevokedCertificates
-);
-
-// PROTECTED — list certificates
+// List certificates
 router.get(
   "/",
   authenticateToken,
@@ -49,24 +47,25 @@ router.get(
   getCertificates
 );
 
-// PROTECTED — single certificate
+// Get revoked certificates (admin only)
 router.get(
-  "/:id",
-  authenticateToken,
-  authorizeRoles("staff", "admin", "super_admin"),
-  getCertificateById
-);
-
-// PROTECTED — revoke
-router.patch(
-  "/:id/revoke",
+  "/revoked",
   authenticateToken,
   authorizeRoles("admin", "super_admin"),
-  revokeCertificate
+  getRevokedCertificates
 );
 
+// Get pending reissue list (staff + admin)
+router.get(
+  "/pending-reissue",
+  authenticateToken,
+  authorizeRoles("admin", "staff"),
+  getPendingReissue
+);
 
-// PROTECTED — download signed PDF
+// ── ITEM ROUTES (with :id) — ALL sub-routes MUST come before plain /:id ──────
+
+// Download signed PDF
 router.get(
   "/:id/pdf",
   authenticateToken,
@@ -74,12 +73,36 @@ router.get(
   downloadCertificatePdf
 );
 
-// PROTECTED — allow reissue for a revoked certificate
+// Revoke a certificate
+router.patch(
+  "/:id/revoke",
+  authenticateToken,
+  authorizeRoles("admin", "super_admin"),
+  revokeCertificate
+);
+
+// Allow reissue for a revoked certificate
 router.patch(
   "/:id/allow-reissue",
   authenticateToken,
   authorizeRoles("admin", "super_admin"),
   allowReissue
+);
+
+// Staff requests admin approval to reissue
+router.post(
+  "/:id/request-reissue",
+  authenticateToken,
+  authorizeRoles("staff"),
+  requestReissue
+);
+
+// Single certificate — MUST be last among /:id routes
+router.get(
+  "/:id",
+  authenticateToken,
+  authorizeRoles("staff", "admin", "super_admin"),
+  getCertificateById
 );
 
 module.exports = router;
