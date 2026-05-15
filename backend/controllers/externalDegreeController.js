@@ -6,6 +6,14 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
+// ── Helper: checks if a string looks like real words ──
+const looksReal = (str) => {
+  const letters = str.replace(/[^a-zA-Z]/g, "");
+  if (letters.length < 3) return false;
+  const vowels = letters.match(/[aeiouAEIOU]/g) || [];
+  return vowels.length / letters.length >= 0.15;
+};
+
 // ── File upload config ──
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -63,6 +71,32 @@ const addExternalDegree = asyncHandler(async (req, res) => {
   if (!["Bachelor", "Master"].includes(degree))
     throw new AppError("External degree must be Bachelor or Master", 400);
 
+  // ── Institution name validation ──
+  if (!/^[A-Za-z\s\-'.]+$/.test(institution.trim()))
+  throw new AppError("Institution name must contain letters only.", 400);
+if (institution.trim().length < 5)
+  throw new AppError("Please enter a valid institution name.", 400);
+if (!looksReal(institution))
+  throw new AppError("Please enter a valid institution name.", 400);
+
+  // ── Country validation ──
+  if (!/^[A-Za-z\s\-']+$/.test(country.trim()))
+  throw new AppError("Country name must contain letters only.", 400);
+if (country.trim().length < 3)
+  throw new AppError("Please enter a valid country name.", 400);
+if (!looksReal(country))
+  throw new AppError("Please enter a valid country name.", 400);
+
+  // ── Graduation year validation ──
+  const currentYear = new Date().getFullYear();
+  const gradYear    = parseInt(graduation_year);
+  if (isNaN(gradYear) || gradYear < 1950 || gradYear > currentYear) {
+    throw new AppError(
+      `Graduation year must be a valid year between 1950 and ${currentYear}.`,
+      400
+    );
+  }
+
   // ── Step 1: Look up student by national_id ──
   const [studentRows] = await db.query(
     "SELECT id, full_name FROM students_new WHERE national_id = ?",
@@ -80,8 +114,29 @@ const addExternalDegree = asyncHandler(async (req, res) => {
         404
       );
 
-    if (!/^\d{6,12}$/.test(national_id))
+   if (!/^\d{6,12}$/.test(national_id))
       throw new AppError("National ID must be 6–12 digits.", 400);
+
+    // ── Age validation ──
+    const birth = new Date(date_of_birth);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    if (isNaN(age) || birth >= today) throw new AppError("Invalid date of birth.", 400);
+    if (age < 21) throw new AppError("Student must be at least 21 years old.", 400);
+    if (age > 100) throw new AppError("Invalid date of birth.", 400);
+
+    // ── Full name validation ──
+      const nameParts = full_name.trim().split(/\s+/);
+      if (nameParts.length < 2)
+      throw new AppError("Please enter a full name (first and last name).", 400);
+      if (nameParts.some(p => p.length < 2))
+      throw new AppError("Each part of the name must be at least 2 characters.", 400);
+      if (!/^[A-Za-z\s'-]+$/.test(full_name.trim()))
+      throw new AppError("Full name must contain letters only.", 400);
+      if (!looksReal(full_name))
+      throw new AppError("Full name does not appear to be valid.", 400);
 
     const [newStudent] = await db.query(
       "INSERT INTO students_new (full_name, national_id, date_of_birth) VALUES (?, ?, DATE(?))",
@@ -107,14 +162,14 @@ const addExternalDegree = asyncHandler(async (req, res) => {
 
     // Check student_records for an undergraduate in same major
     const [intPrereq] = await db.query(
-  `SELECT sr.id
-   FROM student_records sr
-   JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
-   WHERE sr.student_id = ?
-     AND sr.major      = ?
-     AND d.level       = 'undergraduate'`,
-  [studentId, major.trim()]
-);
+      `SELECT sr.id
+       FROM student_records sr
+       JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
+       WHERE sr.student_id = ?
+         AND sr.major      = ?
+         AND d.level       = 'undergraduate'`,
+      [studentId, major.trim()]
+    );
 
     if (extPrereq.length === 0 && intPrereq.length === 0) {
       throw new AppError(
@@ -140,14 +195,14 @@ const addExternalDegree = asyncHandler(async (req, res) => {
 
   // 2d. Prevent duplicate in student_records
   const [intDuplicate] = await db.query(
-  `SELECT sr.id
-   FROM student_records sr
-   JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
-   WHERE sr.student_id = ?
-     AND sr.major      = ?
-     AND d.level       = ?`,
-  [studentId, major.trim(), degreeLevel]
-);
+    `SELECT sr.id
+     FROM student_records sr
+     JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
+     WHERE sr.student_id = ?
+       AND sr.major      = ?
+       AND d.level       = ?`,
+    [studentId, major.trim(), degreeLevel]
+  );
   if (intDuplicate.length > 0) {
     throw new AppError(
       `This student already has an internal ${degree} in "${major}" recorded in the system.`,
@@ -316,4 +371,12 @@ const lookupStudentByNationalId = asyncHandler(async (req, res) => {
     },
   });
 });
-module.exports = { addExternalDegree, getExternalDegrees, deleteExternalDegree, lookupStudentByNationalId, getAllExternalDegrees,  upload };
+
+module.exports = {
+  addExternalDegree,
+  getExternalDegrees,
+  deleteExternalDegree,
+  lookupStudentByNationalId,
+  getAllExternalDegrees,
+  upload,
+};

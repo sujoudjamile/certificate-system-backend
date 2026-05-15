@@ -132,7 +132,7 @@ function Hero() {
         </span>{" "}
         Certificate Instantly
       </h2>
-      <h3 style={{ color: "rgba(255,255,255,0.5)", fontSize: "20px" }}>
+      <h3 style={{ color: "#ffffff", fontSize: "20px" }}>
         Scan the QR code on any certificate issued by a registered Lebanese
         <br /> university to instantly verify its authenticity.
       </h3>
@@ -160,8 +160,8 @@ function Hero() {
         <button onClick={handleVerify}>Verify Certificate</button>
         <h5
           style={{
-            color: "rgba(255,255,255,0.5)",
-            fontSize: "13px",
+            color: "#ffffff",
+            fontSize: "14px",
             fontWeight: "normal",
           }}
         >
@@ -177,7 +177,7 @@ function Hero() {
     <h2>Verify a PDF Certificate</h2>
   </div>
 
-  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", margin: "0 0 16px" }}>
+  <p style={{ color: "#ffffff", fontSize: "14px", margin: "0 0 16px" }}>
     Upload the original PDF certificate to verify its digital signature.
     The system checks the embedded PKCS#7 cryptographic signature automatically.
   </p>
@@ -219,7 +219,7 @@ function Hero() {
         >✕</span>
       </span>
     ) : (
-      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "14px" }}>
+      <span style={{ color: "#ffffff", fontSize: "14px"}}>
         📂 Drop PDF here or click to select
       </span>
     )}
@@ -244,7 +244,7 @@ function Hero() {
     {pdfLoading ? "Verifying..." : "Verify PDF Signature"}
   </button>
 
-  <h5 style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", fontWeight: "normal", marginTop: 8 }}>
+  <h5 style={{ color: "#ffffff", fontSize: "14px", fontWeight: "normal", marginTop: 8 }}>
     The certificate number is extracted automatically from the PDF
   </h5>
 

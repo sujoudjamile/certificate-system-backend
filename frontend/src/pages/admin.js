@@ -260,7 +260,7 @@ function RecentAlertsPreview({ flags, onViewAll }) {
                 <span style={{ fontWeight: 700, fontSize: 14, color: "#ff6b6b" }}>
                   ⚠️ {flag.student_name}
                 </span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+                <span style={{ fontSize: 14, color: "rgba(255,255,255,0.80)" }}>
                   {flag.cert_number} · {RULE_LABELS[flag.rule_name] || flag.rule_name}
                 </span>
               </span>
@@ -422,7 +422,7 @@ function FlagCard({ flag, onDismiss, onResolve }) {
                 <p className="flag-detail-label">REVIEW NOTE</p>
                 <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)" }}>{flag.review_note}</p>
                 {flag.reviewed_by_name && (
-                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "rgba(255,255,255,0.85)" }}>
                     Reviewed by {flag.reviewed_by_name}
                     {flag.resolved_at ? ` · ${new Date(flag.resolved_at).toLocaleString()}` : ""}
                   </p>
@@ -505,7 +505,7 @@ function FraudAlertsTab({ flags, onDismiss, onResolve, loading, onRefresh }) {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", gap: 16, padding: "60px 0" }}>
           <CheckCircle2 size={64} color="#2dce8a" />
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 16, margin: 0 }}>
+          <p style={{ color: "rgba(255,255,255,0.80)", fontSize: 16, margin: 0 }}>
             No {filter === "all" ? "" : filter} fraud alerts
           </p>
         </div>
@@ -588,7 +588,7 @@ function AddProgramModal({ onClose, onSubmit }) {
         <div className="modal-header">
           <div>
             <h2>Add Program</h2>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+            <p style={{ margin: "4px 0 0", fontSize: 14, color: "rgba(255,255,255,0.78)"}}>
               Activate a degree program for your university
             </p>
           </div>
@@ -621,7 +621,7 @@ function AddProgramModal({ onClose, onSubmit }) {
           <label className="prog-form-label">Select Major</label>
           <div className="prog-major-picker">
             {Object.keys(grouped).length === 0 ? (
-              <p style={{ color: "rgba(255,255,255,0.3)", padding: "12px 0", textAlign: "center", fontSize: 13 }}>
+              <p style={{ color: "#ffffff", padding: "12px 0", textAlign: "center", fontSize: 14 }}>
                 {allMajors.length === 0 ? "Loading..." : "No majors match your search"}
               </p>
             ) : Object.entries(grouped).map(([field, majors]) => (
@@ -650,13 +650,13 @@ function AddProgramModal({ onClose, onSubmit }) {
             )}
           </label>
           {!selectedMajor ? (
-            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>
+            <p style={{ color: "#ffffff", fontSize: 14, margin: 0 }}>
               Select a major first
             </p>
           ) : fetchingDeg ? (
-            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>Loading degrees…</p>
+            <p style={{ color: "rgba(255,255,255,0.70)", fontSize: 14, margin: 0 }}>Loading degrees…</p>
           ) : allowedDegrees.length === 0 ? (
-            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0 }}>No degrees available</p>
+            <p style={{ color: "rgba(255,255,255,0.70)", fontSize: 14, margin: 0 }}>No degrees available</p>
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {allowedDegrees.map(d => {
@@ -706,7 +706,7 @@ function AddProgramModal({ onClose, onSubmit }) {
           </button>
           <button onClick={onClose} style={{
             padding: "14px 20px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.1)",
-            background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)",
+            background: "rgba(255,255,255,0.05)", color: "#ffffff",
             cursor: "pointer", fontFamily: "var(--font)", fontSize: 14,
           }}>
             Cancel
@@ -765,7 +765,7 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
             <p style={{ fontSize: 17, fontWeight: 800, color: "white", margin: "0 0 6px" }}>
               Deactivate Program?
             </p>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", margin: "0 0 18px" }}>
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.80)", margin: "0 0 18px" }}>
               <strong style={{ color: "white" }}>{confirmRemove.degree_name}</strong> in{" "}
               <strong style={{ color: "white" }}>{confirmRemove.major_name}</strong> will be deactivated.
             </p>
@@ -794,7 +794,7 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <h3 style={{ color: "white", margin: 0, fontSize: 18, fontWeight: 800 }}>University Programs</h3>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+          <p style={{ margin: "4px 0 0",fontSize: 14, color: "rgba(255,255,255,0.78)" }}>
             {programs.filter(p => p.is_active).length} active program
             {programs.filter(p => p.is_active).length !== 1 ? "s" : ""} across your university
           </p>
@@ -1027,7 +1027,7 @@ function AddStaffModal({ onClose, onSubmit }) {
 // ─────────────────────────────────────────────────────────────
 function StaffCards({ staffList, handleResend }) {
   if (!staffList || staffList.length === 0) {
-    return <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", padding: 40 }}>No staff added yet.</p>;
+    return <p style={{ color: "rgba(255,255,255,0.75)", textAlign: "center", padding: 40 }}>No staff added yet.</p>;
   }
   return (
     <div className="admin-cards">
@@ -1357,7 +1357,7 @@ function ScheduleTab({ addToast }) {
         </div>
         <div className="sched-note-box">
           <Shield size={14} style={{ color: "#60b0ff", flexShrink: 0, marginTop: 1 }} />
-          <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>
+          <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.85)", lineHeight: 1.55 }}>
             <strong style={{ color: "#60b0ff" }}>Fraud Detection uses this.</strong>{" "}
             Certificates issued outside working hours or on holidays automatically trigger the <em>Off-Hours</em> fraud rule.
           </p>
@@ -1408,7 +1408,7 @@ function ScheduleTab({ addToast }) {
           {holidays.length === 0 ? (
             <div className="sched-holidays-empty">
               <Calendar size={40} color="rgba(255,255,255,0.12)" />
-              <p style={{ margin: "8px 0 4px", color: "rgba(255,255,255,0.35)", fontSize: 14 }}>No holidays configured</p>
+              <p style={{ margin: "8px 0 4px", color: "#ffffff", fontSize: 15 }}>No holidays configured</p>
             </div>
           ) : (
             <>
@@ -1649,9 +1649,9 @@ function ExternalDegreesTab({ addToast }) {
     fontSize: 14, fontFamily: "var(--font)", outline: "none",
   };
   const lbl = {
-    display: "block", marginBottom: 7,
-    fontSize: 12, fontWeight: 700, letterSpacing: "0.4px",
-    color: "rgba(255,255,255,0.55)", textTransform: "uppercase",
+  display: "block", marginBottom: 7,
+  fontSize: 13, fontWeight: 700, letterSpacing: "0.4px",
+  color: "#ffffff", textTransform: "uppercase",
   };
   const card = {
     background: "rgba(18,32,64,0.88)",
@@ -1667,7 +1667,7 @@ function ExternalDegreesTab({ addToast }) {
           <h3 style={{ color: "white", margin: 0, fontSize: 20, fontWeight: 800 }}>
             Register Foreign Degree
           </h3>
-          <p style={{ margin: "5px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+          <p style={{ margin: "5px 0 0", fontSize: 14, color: "rgba(255,255,255,0.78)" }}>
             Verify a foreign qualification so the student can enrol in graduate programs.
           </p>
         </div>
@@ -1678,7 +1678,7 @@ function ExternalDegreesTab({ addToast }) {
             padding: "10px 18px", borderRadius: 12,
             border: `1px solid ${showList ? "rgba(96,176,255,0.45)" : "rgba(255,255,255,0.12)"}`,
             background: showList ? "rgba(96,176,255,0.12)" : "rgba(255,255,255,0.04)",
-            color: showList ? "#7cc0ff" : "rgba(255,255,255,0.6)",
+            color: showList ? "#7cc0ff" : "#ffffff",
             fontSize: 13, fontWeight: 700, cursor: "pointer",
             fontFamily: "var(--font)", transition: "all 0.2s",
           }}>
@@ -1713,7 +1713,7 @@ function ExternalDegreesTab({ addToast }) {
                 <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "white" }}>
                   All Registered Foreign Degrees
                 </h4>
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.35)" }}>
+                <p style={{ margin: "2px 0 0", fontSize: 14, color: "white"}}>
                   {allExtDegrees.length} record{allExtDegrees.length !== 1 ? "s" : ""} total
                 </p>
               </div>
@@ -1722,8 +1722,8 @@ function ExternalDegreesTab({ addToast }) {
               display: "flex", alignItems: "center", gap: 6,
               padding: "7px 12px", borderRadius: 9,
               border: "1px solid rgba(255,255,255,0.08)",
-              background: "transparent", color: "rgba(255,255,255,0.4)",
-              fontSize: 12, cursor: "pointer", fontFamily: "var(--font)",
+              background: "transparent", color: "#ffffff",
+              fontSize: 13, cursor: "pointer", fontFamily: "var(--font)",
             }}>
               <RefreshCw size={12} /> Refresh
             </button>
@@ -1753,7 +1753,7 @@ function ExternalDegreesTab({ addToast }) {
           ) : filteredList.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
               <Globe size={36} color="rgba(255,255,255,0.12)" style={{ marginBottom: 12 }} />
-              <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, margin: 0 }}>
+              <p style={{ color: "#ffffff", fontSize: 14, margin: 0 }}>
                 {allExtDegrees.length === 0 ? "No foreign degrees registered yet" : "No results match your search"}
               </p>
             </div>
@@ -1786,13 +1786,13 @@ function ExternalDegreesTab({ addToast }) {
                           {d.student_name}
                         </span>
                         <span style={{
-                          fontSize: 11, color: "rgba(255,255,255,0.35)",
+                          fontSize: 13, color: "rgba(255,255,255,0.72)",
                           fontFamily: "var(--mono)",
                         }}>
                           {d.national_id}
                         </span>
                       </div>
-                      <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                      <p style={{ margin: "3px 0 0", fontSize: 14, color: "rgba(255,255,255,0.82)" }}>
                         {d.major} · {d.institution}, {d.country} · {d.graduation_year}
                       </p>
                       <p style={{ margin: "2px 0 0", fontSize: 11, color: "rgba(255,255,255,0.28)" }}>
@@ -1904,7 +1904,7 @@ function ExternalDegreesTab({ addToast }) {
               <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "white" }}>
                 {studentInfo.full_name}
               </p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+              <p style={{ margin: "2px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
                 DOB: {studentInfo.date_of_birth} · Internal ID: {studentInfo.id}
               </p>
             </div>
@@ -2000,14 +2000,14 @@ function ExternalDegreesTab({ addToast }) {
                 marginBottom: 16,
               }}>
                 {Object.keys(grouped).length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, margin: 0, textAlign: "center" }}>
+                  <p style={{ color: "white", fontSize: 13, margin: 0, textAlign: "center" }}>
                     {allMajors.length === 0 ? "Loading…" : "No majors match"}
                   </p>
                 ) : Object.entries(grouped).map(([field, majors]) => (
                   <div key={field} style={{ marginBottom: 10 }}>
                     <p style={{
-                      margin: "0 0 6px", fontSize: 10, fontWeight: 800,
-                      color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.6px",
+                      margin: "0 0 6px", fontSize: 13, fontWeight: 800,
+                      color: "#ffffff", textTransform: "uppercase", letterSpacing: "0.6px",
                     }}>{field}</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {majors.map(m => {
@@ -2036,14 +2036,14 @@ function ExternalDegreesTab({ addToast }) {
                 <label style={lbl}>
                   Degree *
                   <span style={{ marginLeft: 8, fontWeight: 400, textTransform: "none",
-                    color: "rgba(255,255,255,0.3)", fontSize: 11 }}>
+                    color: "rgba(255,255,255,0.80)", fontSize: 13}}>
                     Bachelor or Master only
                   </span>
                 </label>
                 {!selectedMajor ? (
-                  <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Select a major first</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>Select a major first</p>
                 ) : fetchingDeg ? (
-                  <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Loading…</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.80)" }}>Loading…</p>
                 ) : allowedDegrees.length === 0 ? (
                   <p style={{ margin: 0, fontSize: 13, color: "rgba(255,100,100,0.6)" }}>
                     No Bachelor or Master degrees available for this major
@@ -2147,7 +2147,7 @@ function ExternalDegreesTab({ addToast }) {
                     <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "white" }}>
                       Document (optional)
                     </h4>
-                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                    <p style={{ margin: "2px 0 0", fontSize: 13, color: "rgba(255,255,255,0.70)" }}>
                       PDF or image, max 10 MB
                     </p>
                   </div>
@@ -2166,7 +2166,7 @@ function ExternalDegreesTab({ addToast }) {
                   ) : (
                     <>
                       <Upload size={24} style={{ color: "rgba(255,255,255,0.2)" }} />
-                      <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>Click to upload</p>
+                      <p style={{ margin: 0, fontSize: 13, color: "#ffffff" }}>Click to upload</p>
                     </>
                   )}
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png"
@@ -2239,7 +2239,7 @@ function ExternalDegreesTab({ addToast }) {
               <button onClick={resetAll} style={{
                 width: "100%", padding: "11px", borderRadius: 12,
                 border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)",
-                color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer",
+                color: "rgba(255,255,255,0.72)", fontSize: 14, cursor: "pointer",
                 fontFamily: "var(--font)",
               }}>
                 Start Over

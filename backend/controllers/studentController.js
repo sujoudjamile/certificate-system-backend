@@ -12,7 +12,8 @@ const emailRegex        = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const lebanonPhoneRegex = /^(?:3|70|71|76|78|79|81|82|83|84|85|86|87|88|89)\d{6}$/;
 const nationalIdRegex   = /^\d{6,12}$/;
 const studentIdRegex    = /^\d{8}$/;
-const fullNameRegex     = /^[A-Za-z]+(?:\s[A-Za-z]+)+$/;
+const fullNameRegex = /^[A-Za-z\s'-]+(?:\s[A-Za-z\s'-]+)*$/;
+ 
 
 // Rejects future dates and calculates age
 const parseAge = (dob) => {
@@ -236,11 +237,13 @@ const addStudent = async (req, res) => {
 
     // ── STEP 3 — Format & validate personal fields ──
     full_name = formatName(full_name);
-    if (!fullNameRegex.test(full_name)) {
+   if (!fullNameRegex.test(full_name)) {
       return res.status(400).json({
         message: "Full name must contain a first name and a family name.",
       });
     }
+    if (full_name.trim().split(/\s+/).some(p => /(.)\1{3,}/.test(p)))
+      return res.status(400).json({ message: "Full name does not appear to be valid." });
 
     national_id = national_id.trim();
     if (!nationalIdRegex.test(national_id)) {
@@ -388,12 +391,6 @@ const addStudent = async (req, res) => {
   }
 };
 
-/*
-==================================
-GET STUDENTS
-==================================
-Returns all students enrolled at the logged-in user's university.
-*/
 const getStudents = async (req, res) => {
   try {
     const university_id = req.user.university_id;
@@ -404,25 +401,35 @@ const getStudents = async (req, res) => {
       });
     }
 
+    const { search } = req.query;
+    const searchTerm = search ? `%${search}%` : '%';
+
     const [rows] = await db.query(
       `SELECT
-         sr.id          AS record_id,
-         sn.id,
-         sn.full_name,
-         sr.university_id,
-         sn.national_id,
-         DATE_FORMAT(sn.date_of_birth, '%Y-%m-%d') AS date_of_birth,
-         sr.student_code,
-         sr.email,
-         sr.phone,
-         sr.degree,
-         sr.major,
-         sr.created_at  AS enrolled_at
+          sr.id           AS record_id,
+          sn.id,
+          sn.full_name,
+          sr.university_id,
+          sn.national_id,
+          DATE_FORMAT(sn.date_of_birth, '%Y-%m-%d') AS date_of_birth,
+          sr.student_code,
+          sr.email,
+          sr.phone,
+          sr.degree,
+          sr.major,
+          sr.created_at  AS enrolled_at
        FROM students_new sn
        JOIN student_records sr ON sr.student_id = sn.id
        WHERE sr.university_id = ?
+         AND (
+           LOWER(sn.full_name) LIKE LOWER(?) OR 
+           LOWER(sr.email) LIKE LOWER(?) OR 
+           sn.national_id LIKE ? OR 
+           sr.student_code LIKE ? OR
+           LOWER(SUBSTRING_INDEX(sn.full_name, ' ', 1)) LIKE LOWER(?)
+         )
        ORDER BY sn.full_name ASC, sr.created_at ASC`,
-      [university_id]
+      [university_id, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm]
     );
 
     res.json({ status: "success", students: rows });
@@ -432,15 +439,6 @@ const getStudents = async (req, res) => {
   }
 };
 
-/*
-==================================
-AUTO-FILL BY NATIONAL ID
-==================================
-Returns one of three states:
-  { exists: false }
-  { exists: true, in_university: false, student: {...} }
-  { exists: true, in_university: true,  student: {...}, university_record: {...} }
-*/
 const getStudentByNationalId = async (req, res) => {
   try {
     const { national_id } = req.params;
@@ -487,7 +485,6 @@ const getStudentByNationalId = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 /*
 ==================================
 UPDATE STUDENT RECORD

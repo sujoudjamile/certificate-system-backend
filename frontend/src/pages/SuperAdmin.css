@@ -11,8 +11,8 @@ body { margin: 0; overflow-x: hidden; }
   --gold:      #f5c840;
   --green:     #3ddf98;
   --text-1:    #ffffff;
-  --text-2:    rgba(255,255,255,0.72);
-  --text-3:    rgba(255,255,255,0.42);
+  --text-2:    rgba(255,255,255,0.90);
+  --text-3:    rgba(255,255,255,0.65);
   --border:    rgba(255,255,255,0.09);
   --border-h:  rgba(255,255,255,0.17);
   --font:      'DM Sans', sans-serif;
@@ -134,8 +134,8 @@ body { margin: 0; overflow-x: hidden; }
 }
 
 .stat-card__label {
-  font-size: 13px; font-weight: 600;
-  color: var(--text-2); letter-spacing: 0.2px;
+  font-size: 14px; font-weight: 700;
+  color: #ffffff; letter-spacing: 0.2px;
 }
 .stat-card--active .stat-card__label { color: var(--gold); }
 .stat-card--secure .stat-card__label { color: var(--green); }
@@ -251,18 +251,18 @@ body { margin: 0; overflow-x: hidden; }
 .modal-body { display: flex; flex-direction: column; gap: 14px; }
 
 .modal-body label {
-  color: var(--text-2); font-size: 14px; font-weight: 600; margin-bottom: -6px;
+  color: #ffffff; font-size: 15px; font-weight: 700; margin-bottom: -6px;
 }
 
 .modal-body input {
   padding: 14px 15px; border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.07); color: white;
-  font-size: 14.5px; font-family: var(--font); outline: none;
+  font-size: 16px; font-family: var(--font); outline: none;
   transition: border-color 0.2s;
 }
 .modal-body input:focus { border-color: rgba(232,24,14,0.55); }
-.modal-body input::placeholder { color: var(--text-3); }
+.modal-body input::placeholder { color: rgba(255,255,255,0.55); }
 
 .modal-submit {
   margin-top: 8px; padding: 14px;
@@ -302,8 +302,8 @@ body { margin: 0; overflow-x: hidden; }
 .admin-title-row { display: flex; align-items: center; gap: 10px; }
 .admin-icon  { color: var(--gold); flex-shrink: 0; }
 .admin-name  { font-size: 20px; font-weight: 800; margin: 0; color: white; letter-spacing: -0.3px; }
-.admin-email { font-size: 14.5px; color: var(--text-2); margin: 0; }
-.admin-uni   { font-size: 13px; color: rgba(143,163,200,1); margin: 0; }
+.admin-email { font-size: 15px; color: #ffffff; margin: 0; }
+.admin-uni   { font-size: 14px; color: rgba(180,210,255,1); margin: 0; }
 
 .admin-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 
