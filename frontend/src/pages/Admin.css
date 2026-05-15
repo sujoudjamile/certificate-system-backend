@@ -8,8 +8,8 @@
   --accent:    #e8180e;
   --accent-h:  #ff3b30;
   --text-1:    #ffffff;
-  --text-2:    rgba(255,255,255,0.72);
-  --text-3:    rgba(255,255,255,0.42);
+  --text-2:    rgba(255,255,255,0.90);
+  --text-3:    rgba(255,255,255,0.78);
   --border:    rgba(255,255,255,0.09);
   --border-h:  rgba(255,255,255,0.17);
   --font:      'DM Sans', sans-serif;
@@ -64,7 +64,7 @@
 
 .uni-nav__titles { display: flex; flex-direction: column; gap: 2px; }
 .uni-nav__title  { font-size: 17px; font-weight: 800; color: white; margin: 0; line-height: 1.2; letter-spacing: -0.2px; }
-.uni-nav__subtitle { font-size: 13px; color: var(--text-3); font-weight: 500; margin: 0; }
+.uni-nav__subtitle { font-size: 13px; color: rgba(255,255,255,0.80); font-weight: 500; margin: 0; }
 
 .uni-nav__actions { display: flex; align-items: center; gap: 8px; }
 
@@ -192,7 +192,7 @@
 .uni-stat__icon--amber { color: #f5c840; }
 .uni-stat__icon--green { color: #3ddf98; }
 
-.uni-stat__label { font-size: 13px; color: var(--text-2); font-weight: 500; margin: 0; letter-spacing: 0.2px; }
+.uni-stat__label { font-size: 15px; color: #ffffff; font-weight: 700; margin: 0; letter-spacing: 0.2px; }
 .uni-stat__value { font-size: 40px; font-weight: 800; color: white; line-height: 1; margin: 0; letter-spacing: -1px; }
 .uni-stat__value--active { font-size: 28px; font-weight: 800; color: #3ddf98; }
 .uni-stat__value--warn   { color: #f5c840 !important; }
@@ -239,7 +239,7 @@
 
 /* ── Alerts empty ── */
 .uni-alerts-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 160px; gap: 12px; }
-.uni-alerts-empty__text { font-size: 14.5px; color: var(--text-3); margin: 0; font-weight: 500; }
+.uni-alerts-empty__text { font-size: 15px; color: rgba(255,255,255,0.78); margin: 0; font-weight: 500; }
 
 /* ══════════════════════════════════════
    RISK BADGES
@@ -302,7 +302,7 @@
 
 .toast__body { flex: 1; min-width: 0; }
 .toast__title { margin: 0 0 2px; font-size: 14px; font-weight: 700; color: white; }
-.toast__msg   { margin: 0; font-size: 12.5px; color: rgba(255,255,255,0.60); line-height: 1.4; }
+.toast__msg   { margin: 0; font-size: 13.5px; color: rgba(255,255,255,0.85); line-height: 1.4; }
 
 .toast__close {
   flex-shrink: 0; background: transparent; border: none;
@@ -318,13 +318,13 @@
 .fraud-stats-widget { padding: 24px 22px; }
 
 .fraud-stats-section-label {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-  color: rgba(255,255,255,0.35); text-transform: uppercase;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.8px;
+  color: rgba(255,255,255,0.70); text-transform: uppercase;
   margin: 0 0 12px;
 }
 
 .fraud-stats-empty {
-  font-size: 13px; color: rgba(255,255,255,0.3);
+  font-size: 14px; color: rgba(255,255,255,0.65);
   margin: 0 0 16px; font-style: italic;
 }
 
@@ -333,7 +333,7 @@
   display: flex; align-items: center; gap: 10px;
   margin-bottom: 10px;
 }
-.fraud-rule-name  { font-size: 13px; font-weight: 600; color: var(--text-2); min-width: 130px; flex-shrink: 0; }
+.fraud-rule-name  { font-size: 14px; font-weight: 600; color: #ffffff; min-width: 130px; flex-shrink: 0; }
 .fraud-rule-count { font-size: 12px; font-weight: 700; color: #f59e0b; min-width: 24px; text-align: right; flex-shrink: 0; }
 .fraud-rule-bar   { flex: 1; height: 5px; background: rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; }
 .fraud-rule-bar__fill { height: 100%; background: linear-gradient(90deg, #e8180e, #f59e0b); border-radius: 10px; transition: width 0.6s ease; }
@@ -347,7 +347,7 @@
   margin-bottom: 8px;
 }
 .fraud-suspect-name  { font-size: 13px; font-weight: 600; color: white; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fraud-suspect-email { font-size: 11px; color: rgba(255,255,255,0.35); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fraud-suspect-email { font-size: 13px; color: rgba(255,255,255,0.72); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ══════════════════════════════════════
    FLAG FILTER BAR
@@ -378,7 +378,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 20px;
   border: 1px solid rgba(255,255,255,0.08);
-  background: transparent; color: rgba(255,255,255,0.35);
+  background: transparent; color: rgba(255,255,255,0.85);
   font-size: 12px; cursor: pointer; transition: all 0.2s;
   font-family: var(--font); margin-left: auto;
 }
@@ -416,8 +416,8 @@
 }
 
 .flag-card__student { font-size: 17px; font-weight: 800; color: white; margin: 0; }
-.flag-card__cert    { font-size: 13px; color: rgba(255,255,255,0.5); margin: 3px 0 0; font-family: var(--mono); }
-.flag-card__meta    { font-size: 12px; color: rgba(255,255,255,0.35); margin: 4px 0 0; }
+.flag-card__cert    { font-size: 14px; color: rgba(255,255,255,0.85); margin: 3px 0 0; font-family: var(--mono); }
+.flag-card__meta    { font-size: 14px; color: rgba(255,255,255,0.88); margin: 4px 0 0; }
 
 /* Status badge inside card */
 .flag-status-badge {
@@ -432,7 +432,7 @@
   display: inline-flex; align-items: center; gap: 5px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.45); font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,0.90); font-size: 12px; font-weight: 600;
   padding: 5px 12px; border-radius: 20px; cursor: pointer;
   transition: all 0.2s; font-family: var(--font);
 }
@@ -444,8 +444,8 @@
   border: 1px solid rgba(232,24,14,0.15);
   border-radius: 10px; padding: 12px 14px; margin-bottom: 0;
 }
-.flag-reason-label { margin: 0 0 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: rgba(255,255,255,0.35); text-transform: uppercase; }
-.flag-reason-text  { margin: 0; font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.55; }
+.flag-reason-label { margin: 0 0 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; color: rgba(255,255,255,0.70); text-transform: uppercase; }
+.flag-reason-text  { margin: 0; font-size: 15px; color: #ffffff; line-height: 1.55; }
 
 /* Expanded details */
 .flag-details { margin-top: 14px; }
@@ -460,8 +460,8 @@
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px; padding: 10px 12px;
 }
-.flag-detail-label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: rgba(255,255,255,0.30); text-transform: uppercase; margin-bottom: 3px; }
-.flag-detail-value { font-size: 13px; font-weight: 600; color: var(--text-2); font-family: var(--mono); }
+.flag-detail-label { display: block; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: rgba(255,255,255,0.82); text-transform: uppercase; margin-bottom: 3px; }
+.flag-detail-value { font-size: 14px; font-weight: 600; color: #ffffff; font-family: var(--mono); }
 
 .flag-review-note {
   background: rgba(255,255,255,0.04);
@@ -538,7 +538,7 @@
 .modal-close:hover { background: rgba(255,255,255,0.13); color: white; }
 
 .modal-body { display: flex; flex-direction: column; gap: 14px; }
-.modal-body label { color: rgba(255,255,255,0.72); font-size: 14px; font-weight: 600; margin-bottom: -6px; }
+.modal-body label { color: #ffffff; font-size: 15px; font-weight: 600; margin-bottom: -6px; }
 .modal-body input {
   padding: 14px 15px; border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.12);
@@ -616,8 +616,8 @@
 .admin-title-row { display: flex; align-items: center; gap: 10px; }
 .admin-icon  { color: #f5c840; flex-shrink: 0; }
 .admin-name  { font-size: 20px; font-weight: 800; margin: 0; color: white; letter-spacing: -0.3px; }
-.admin-email { font-size: 14px; color: var(--text-2); margin: 0; }
-.admin-uni   { font-size: 13px; color: rgba(143,163,200,1); margin: 0; }
+.admin-email { font-size: 15px; color: #ffffff; margin: 0; }
+.admin-uni   { font-size: 14px; color: rgba(180,210,255,1); margin: 0; }
 .admin-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 
 /* Status badges */
@@ -1195,14 +1195,14 @@ letter-spacing: 0.2px;
 
 .prog-major-sub {
 margin: 2px 0 0;
-font-size: 12px;
-color: rgba(255,255,255,0.5);
+font-size: 14px;
+color: #ffffff;
 font-weight: 500;
 }
 
 .prog-expand-btn {
-font-size: 12px;
-color: rgba(255,255,255,0.6);
+font-size: 13px;
+color: #ffffff;
 font-weight: 700;
 }
 
@@ -1271,7 +1271,7 @@ font-family: var(--font);
 }
 
 .prog-search-input::placeholder {
-color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.60);
 }
 
 .prog-search-input:focus {
@@ -1401,7 +1401,7 @@ gap: 10px;
 
 .sched-panel__sub {
   margin: 0;
-  font-size: 12px; color: rgba(255,255,255,0.38);
+  font-size: 13px; color: rgba(255,255,255,0.72);
   font-weight: 500;
 }
 
@@ -1428,9 +1428,9 @@ gap: 10px;
 }
 
 .sched-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: rgba(255,255,255,0.55);
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1627,9 +1627,9 @@ gap: 10px;
 /* ── Group label ── */
 .sched-group-label {
   margin: 16px 0 10px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
-  color: rgba(255,255,255,0.30);
+  color: rgba(255,255,255,0.70);
   text-transform: uppercase;
   letter-spacing: 0.7px;
 }
@@ -1715,8 +1715,8 @@ gap: 10px;
 
 .sched-holiday-by {
   margin: 0;
-  font-size: 11px;
-  color: rgba(255,255,255,0.30);
+  font-size: 13px;
+  color: rgba(255,255,255,0.68);
 }
 
 .sched-delete-btn {
@@ -1852,8 +1852,8 @@ gap: 10px;
 
 /* Timezone */
 .sched-sum-tz {
-  font-size: 11.5px;
-  color: rgba(255,255,255,0.30);
+  font-size: 13px;
+  color: rgba(255,255,255,0.70);
   margin: 0 0 14px;
   font-weight: 500;
 }
@@ -1909,4 +1909,13 @@ gap: 10px;
   color: rgba(255,255,255,0.38);
   font-weight: 500;
   text-align: right;
+}
+input::placeholder {
+  color: rgba(255,255,255,0.85) !important;
+  opacity: 1 !important;
+}
+
+textarea::placeholder {
+  color: rgba(255,255,255,0.85) !important;
+  opacity: 1 !important;
 }

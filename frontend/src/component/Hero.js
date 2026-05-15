@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaQrcode, FaLock, FaExclamationTriangle, FaGraduationCap } from "react-icons/fa";
+import { FaQrcode, FaLock, FaExclamationTriangle, FaGraduationCap ,  FaFilePdf } from "react-icons/fa";
 import axios from "axios";
 
 function Hero() {
@@ -20,6 +20,12 @@ function Hero() {
       description:
         "Each certificate carries a unique SHA-256 hashed QR code that cannot be replicated or forged.",
     },
+    {
+  icon: <FaFilePdf className="pdf" />,
+  title: "Digitally Signed PDFs",
+  description:
+    "Every certificate is exported as a PKCS#7-signed PDF with an embedded X.509 certificate, verifiable offline by any PDF reader.",
+},
     {
       icon: <FaLock className="lock" />,
       title: "Immutable Records",
@@ -120,9 +126,10 @@ function Hero() {
 };
 
   return (
+    <div>
     <div className="hero">
       <div className="security-badge">
-        🔒 Blockchain-level Security for Lebanese Academic Credentials
+        🔒 Cryptographically Signed Academic Credentials
       </div>
       <h2 className="title">
         Verify Any Lebanese{" "}
@@ -132,7 +139,7 @@ function Hero() {
         </span>{" "}
         Certificate Instantly
       </h2>
-      <h3 style={{ color: "rgba(255,255,255,0.5)", fontSize: "20px" }}>
+      <h3>
         Scan the QR code on any certificate issued by a registered Lebanese
         <br /> university to instantly verify its authenticity.
       </h3>
@@ -177,7 +184,7 @@ function Hero() {
     <h2>Verify a PDF Certificate</h2>
   </div>
 
-  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", margin: "0 0 16px" }}>
+  <p style={{ color: "rgba(255, 255, 255, 0.96)", fontSize: "13px", margin: "0 0 16px" }}>
     Upload the original PDF certificate to verify its digital signature.
     The system checks the embedded PKCS#7 cryptographic signature automatically.
   </p>
@@ -219,7 +226,7 @@ function Hero() {
         >✕</span>
       </span>
     ) : (
-      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "14px" }}>
+      <span style={{ color: "rgba(255, 255, 255, 0.97)", fontSize: "14px" }}>
         📂 Drop PDF here or click to select
       </span>
     )}
@@ -244,7 +251,7 @@ function Hero() {
     {pdfLoading ? "Verifying..." : "Verify PDF Signature"}
   </button>
 
-  <h5 style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", fontWeight: "normal", marginTop: 8 }}>
+  <h5 style={{ color: "rgba(255, 255, 255, 0.97)", fontSize: "12px", fontWeight: "normal", marginTop: 8 }}>
     The certificate number is extracted automatically from the PDF
   </h5>
 
@@ -383,6 +390,7 @@ function Hero() {
     </div>
   )}
 </div>
+</div>
 
       <div className="About">
         {features.map((feature, index) => (
@@ -421,6 +429,7 @@ function Hero() {
           ))}
         </div>
       </div>
+    
     </div>
   );
 }

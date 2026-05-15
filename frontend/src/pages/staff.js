@@ -131,7 +131,7 @@ function SearchableDropdown({
             ? "rgba(255,255,255,0.25)"
             : selected
             ? "white"
-            : "rgba(255,255,255,0.45)",
+            : "#ffffff",
           fontSize,
           fontFamily: "var(--font)",
           fontWeight: selected ? 600 : 400,
@@ -238,7 +238,7 @@ function SearchableDropdown({
                       fontWeight: 800,
                       letterSpacing: "0.8px",
                       textTransform: "uppercase",
-                      color: "rgba(255,255,255,0.3)",
+                      color: "rgba(255,255,255,0.80)",
                       borderTop: "1px solid rgba(255,255,255,0.05)",
                     }}>
                       {group}
@@ -284,7 +284,7 @@ function SearchableDropdown({
                 padding: "9px 16px",
                 borderTop: "1px solid rgba(255,255,255,0.07)",
                 fontSize: 12,
-                color: "rgba(255,255,255,0.35)",
+                color: "rgba(255,255,255,0.80)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -408,7 +408,7 @@ function PendingReissueTab({ addToast }) {
                     {item.student_name}
                   </span>
                 </div>
-                <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)",
+                <p style={{ margin: "3px 0 0", fontSize: 14, color: "#ffffff",
                   fontFamily: "monospace" }}>
                   ID {item.national_id} · {item.degree} in {item.major}
                 </p>
@@ -416,7 +416,7 @@ function PendingReissueTab({ addToast }) {
               <div style={{
                 padding: "8px 14px", borderRadius: 10,
                 background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.25)",
-                fontSize: 12, color: "#ef4444", fontWeight: 600,
+                fontSize: 14, color: "#ef4444", fontWeight: 600,
               }}>
                 Previously: {item.revoked_cert_number}
               </div>
@@ -429,9 +429,9 @@ function PendingReissueTab({ addToast }) {
                 background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
               }}>
                 <p style={{ margin: "0 0 3px", fontSize: 10, fontWeight: 700,
-                  color: "rgba(255,255,255,0.3)", letterSpacing: "0.8px",
+                  color: "#ffffff", letterSpacing: "0.8px",
                   textTransform: "uppercase" }}>Original Revoke Reason</p>
-                <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.65)" }}>
+                <p style={{ margin: 0, fontSize: 15, color: "#ffffff"}}>
                   {item.revoke_reason}
                 </p>
               </div>
@@ -441,7 +441,7 @@ function PendingReissueTab({ addToast }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
                 <label style={{ display: "block", marginBottom: 6, fontSize: 11, fontWeight: 700,
-                  color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  color: "#ffffff", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   GPA (optional)
                 </label>
                 <input
@@ -462,7 +462,7 @@ function PendingReissueTab({ addToast }) {
               </div>
               <div>
                 <label style={{ display: "block", marginBottom: 6, fontSize: 11, fontWeight: 700,
-                  color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  color: "#ffffff", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Graduation Date *
                 </label>
                 <input
@@ -537,7 +537,7 @@ function RevokedCertsTab({ certs, addToast }) {
 
   if (blocked.length === 0) return (
     <div style={{ textAlign: "center", padding: "60px 0",
-      color: "rgba(255,255,255,0.35)", fontSize: 15 }}>
+      color: "#ffffff", fontSize: 15 }}>
       No revoked certificates pending admin review.
     </div>
   );
@@ -555,15 +555,15 @@ function RevokedCertsTab({ certs, addToast }) {
             display: "flex", justifyContent: "space-between", alignItems: "center",
           }}>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 16, color: "white", marginBottom: 4 }}>
+              <div style={{ fontWeight: 800, fontSize: 18, color: "white", marginBottom: 4 }}>
                 {c.student_name}
               </div>
-              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
+              <div style={{ fontSize: 15, color: "#ffffff", marginBottom: 6 }}>
                 {c.degree} · {c.major}
                 {c.GPA ? ` · GPA ${parseFloat(c.GPA).toFixed(2)}` : ""}
               </div>
-              <div style={{ fontFamily: "monospace", fontSize: 11,
-                color: "rgba(255,255,255,0.3)", marginBottom: 8 }}>
+              <div style={{ fontFamily: "monospace", fontSize: 14,
+                color: "#ffffff", marginBottom: 8 }}>
                 #{c.cert_number}
               </div>
               <span style={{
@@ -574,7 +574,7 @@ function RevokedCertsTab({ certs, addToast }) {
               }}>REVOKED</span>
               {c.revoke_reason && (
                 <div style={{ marginTop: 8, fontSize: 12,
-                  color: "rgba(255,255,255,0.40)", fontStyle: "italic" }}>
+                  color: "rgba(255,255,255,0.85)", fontStyle: "italic"}}>
                   Reason: {c.revoke_reason}
                 </div>
               )}
@@ -610,7 +610,7 @@ function RevokedCertsTab({ certs, addToast }) {
                   : <>✉ Contact Admin</>}
               </button>
               {alreadySent && (
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.30)",
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.80)",
                   marginTop: 5, textAlign: "center" }}>
                   Admin notified
                 </div>
@@ -628,8 +628,9 @@ export default function Staff() {
   const [tab,      setTab]      = useState("students");
   const [students, setStudents] = useState([]);
   const [certs,    setCerts]    = useState([]);
-  const [staff,    setStaff]    = useState(null);
-  const [error,    setError]    = useState("");
+  const [staff, setStaff] = useState(null);
+  const [searchTerm, setSearchTerm] = useState(""); // <--- Add this
+  const [error,    setError]    = useState("");
   const [certSubTab, setCertSubTab] = useState("active");
 
   // University programs (major+degree combos this uni offers)
@@ -726,11 +727,14 @@ export default function Staff() {
   }, [editForm.major, degreeOptionsForMajor]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
-  const fetchStudents = async () => {
+  const fetchStudents = async (query = "") => {
     try {
-      const res = await axios.get(`${API}/students/`, authHeader());
+      // Added ?search=${query} to the URL
+      const res = await axios.get(`${API}/students/?search=${query}`, authHeader());
       setStudents(res.data.students || []);
-    } catch (err) { console.error("Fetch students error:", err); }
+    } catch (err) { 
+      console.error("Fetch students error:", err); 
+    }
   };
 
   const fetchPrograms = async () => {
@@ -743,12 +747,21 @@ export default function Staff() {
   };
 
   useEffect(() => {
-    fetchStudents();
     fetchPrograms();
     axios.get(`${API}/users/me`, authHeader())
       .then(r => setStaff(r.data.user))
       .catch(console.error);
   }, []);
+  // 2. ADD THIS NEW ONE for the Search Logic (Debounce)
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      // Remove the 'if' check just to test
+      fetchStudents(searchTerm); 
+    }, 200);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]); // Removed 'tab' from here too
+
 
   useEffect(() => {
     if (tab === "certs") {
@@ -759,7 +772,9 @@ export default function Staff() {
   }, [tab]);
 
   useEffect(() => {
-    if (showCertModal) fetchStudents();
+    if (showCertModal === false) { // Trigger when the modal CLOSES
+       fetchStudents(searchTerm); 
+    }
   }, [showCertModal]);
 
   // ── Grouped students for display ──────────────────────────────────────────
@@ -914,7 +929,12 @@ export default function Staff() {
       setShowCertModal(false);
       setCF({ student_id:"", major:"", degree:"", gpa:"", graduation_date:"" });
       setCertError(""); setCertStudentSearch(""); setShowStudentDropdown(false);
-      setIssuedCert(nc);
+      setIssuedCert({
+        ...nc,
+        email_sent:        res.data.email_sent,
+        student_email:     res.data.student_email,
+        email_fail_reason: res.data.email_fail_reason,
+      });
     } catch (err) {
       setCertError(err.response?.data?.message || "Failed to issue certificate.");
     } finally { setCertLoading(false); }
@@ -981,7 +1001,11 @@ export default function Staff() {
 
       {/* TOPBAR */}
       <div className="topbar">
-        <input placeholder="Search by name, ID, or email…" />
+        <input 
+          placeholder={tab === "students" ? "Search by name" : "Search by student name or cert number…"}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
         {tab === "students"
           ? <button className="green" onClick={() => setShowStudentModal(true)}>+ Add Student/Degree</button>
           : <button className="green" onClick={() => setShowCertModal(true)}>+ Add Certificate</button>}
@@ -1059,9 +1083,9 @@ export default function Staff() {
                         );
                       })}
                     </div>
-                    <div style={{ display:"flex", gap:16, marginTop:10, fontSize:12, color:"rgba(255,255,255,0.35)" }}>
-                      {first.email && <span style={{ display:"flex", alignItems:"center", gap:4 }}><Mail size={11}/>{first.email}</span>}
-                      {first.phone && <span style={{ display:"flex", alignItems:"center", gap:4 }}><Phone size={11}/>{first.phone}</span>}
+                    <div style={{ display:"flex", gap:16, marginTop:10, fontSize:14, color:"rgba(255,255,255,0.85)" }}>
+                      {first.email && <span style={{ display:"flex", alignItems:"center", gap:6 }}><Mail size={13}/>{first.email}</span>}
+                      {first.phone && <span style={{ display:"flex", alignItems:"center", gap:6 }}><Phone size={13}/>{first.phone}</span>}
                     </div>
                   </div>
                 )}
@@ -1094,7 +1118,7 @@ export default function Staff() {
             background: certSubTab === sub.key
               ? "linear-gradient(135deg, #e8180e, #ff3b30)"
               : "rgba(255,255,255,0.05)",
-            color: certSubTab === sub.key ? "white" : "rgba(255,255,255,0.55)",
+            color: certSubTab === sub.key ? "white" : "rgba(255,255,255,0.90)",
             fontWeight: 700, fontSize: 13.5, cursor: "pointer",
             fontFamily: "var(--font)",
             boxShadow: certSubTab === sub.key ? "0 4px 14px rgba(232,24,14,0.38)" : "none",
@@ -1120,10 +1144,19 @@ export default function Staff() {
 
     {certSubTab === "active" && (
       <>
-        <h3>Active Certificates ({certs.filter(c => c.status !== "revoked").length})</h3>
-        {certs.filter(c => c.status !== "revoked").length === 0 ? (
-          <p className="empty">No active certificates yet.</p>
-        ) : certs.filter(c => c.status !== "revoked").map(c => (
+        <h3>Active Certificates ({certs.filter(c => c.status !== "revoked" && (
+          c.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.cert_number?.toLowerCase().includes(searchTerm.toLowerCase())
+        )).length})</h3>
+        {certs.filter(c => c.status !== "revoked" && (
+          c.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.cert_number?.toLowerCase().includes(searchTerm.toLowerCase())
+        )).length === 0 ? (
+          <p className="empty">No certificates match your search.</p>
+        ) : certs.filter(c => c.status !== "revoked" && (
+          c.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.cert_number?.toLowerCase().includes(searchTerm.toLowerCase())
+        )).map(c => (
           <div key={c.id} className="card cert">
             <div>
               <h4>{c.student_name}</h4>
@@ -1509,7 +1542,7 @@ export default function Staff() {
                         style={{
                           position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
                           background:"none", border:"none", cursor:"pointer",
-                          color:"rgba(255,255,255,0.4)", padding:0, lineHeight:1, display:"flex",
+                          color:"rgba(255,255,255,0.85)", padding:0, lineHeight:1, display:"flex",
                         }}
                       >
                         <X size={14} />
@@ -1542,7 +1575,7 @@ export default function Staff() {
                         {filtered.length === 0 ? (
                           <div style={{
                             padding: "14px 16px",
-                            color: "rgba(255,255,255,0.35)",
+                            color: "#ffffff",
                             fontSize: 13, fontStyle: "italic", textAlign: "center",
                           }}>
                             {certStudentSearch ? `No students match "${certStudentSearch}"` : "No students found"}
@@ -1566,7 +1599,7 @@ export default function Staff() {
                           >
                             <div>
                               <div style={{ fontWeight: 700, color: "white", fontSize: 14 }}>{s.full_name}</div>
-                              <div style={{ color: "rgba(255,255,255,0.38)", fontFamily: "monospace", fontSize: 11, marginTop: 2 }}>
+                              <div style={{ color: "rgba(255,255,255,0.80)", fontFamily: "monospace", fontSize: 12, marginTop: 2}}>
                                 NID: {s.national_id}
                               </div>
                             </div>
@@ -1610,7 +1643,7 @@ export default function Staff() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">
-                  GPA <span style={{ color:"rgba(255,255,255,0.3)", fontWeight:400 }}>(optional)</span>
+                  GPA <span style={{ color:"rgba(255,255,255,0.85)", fontWeight:400 }}>(optional)</span>
                 </label>
                 <input className="form-input" type="number" step="0.01" min="2" max="4"
                   placeholder="e.g. 3.75"
@@ -1661,6 +1694,44 @@ export default function Staff() {
                 <p className="qr-hint">Scan to verify</p>
               </div>
             )}
+            {/* ── Email status ── */}
+              {issuedCert.email_sent ? (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "12px 16px", borderRadius: 12, margin: "14px 0 4px",
+                  background: "rgba(34,197,94,0.10)",
+                  border: "1px solid rgba(34,197,94,0.28)",
+                }}>
+                  <Mail size={16} color="#4ade80" style={{ flexShrink: 0 }} />
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#4ade80" }}>
+                      Certificate emailed successfully
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
+                      Sent to {issuedCert.student_email}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "12px 16px", borderRadius: 12, margin: "14px 0 4px",
+                  background: "rgba(245,158,11,0.08)",
+                  border: "1px solid rgba(245,158,11,0.25)",
+                }}>
+                  <Mail size={16} color="#fbbf24" style={{ flexShrink: 0 }} />
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#fbbf24" }}>
+                      Email not sent
+                    </div>
+                    {issuedCert.email_fail_reason && (
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                        {issuedCert.email_fail_reason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             <div className="modal-actions">
               <button onClick={() => downloadPdf(issuedCert.id, issuedCert.cert_number)}>
                 <Download size={14} style={{ marginRight:6 }}/>Download PDF

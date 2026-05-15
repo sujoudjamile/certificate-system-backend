@@ -6,8 +6,8 @@
   --accent:    #e8180e;
   --accent-h:  #ff3b30;
   --text-1:    #ffffff;
-  --text-2:    rgba(255,255,255,0.72);
-  --text-3:    rgba(255,255,255,0.42);
+  --text-2:    rgba(255,255,255,0.90);
+  --text-3:    rgba(255,255,255,0.65);
   --border:    rgba(255,255,255,0.09);
   --border-h:  rgba(255,255,255,0.16);
   --font:      'DM Sans', sans-serif;
@@ -89,7 +89,7 @@
   padding: 10px 22px; border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.05);
-  color: var(--text-2);
+  color: #ffffff;
   cursor: pointer; font-weight: 600; font-size: 14px;
   font-family: var(--font);
   transition: all .22s; letter-spacing: 0.1px;
@@ -118,7 +118,7 @@
   transition: border-color 0.2s;
 }
 .topbar input:focus { border-color: var(--accent); }
-.topbar input::placeholder { color: var(--text-3); }
+.topbar input::placeholder { color: rgba(255,255,255,0.85); }
 
 .topbar .green {
   background: linear-gradient(135deg, var(--accent), var(--accent-h));
@@ -140,8 +140,8 @@
 }
 .box h3 {
   margin: 0 0 22px;
-  font-size: 12px; font-weight: 800;
-  color: rgba(255,255,255,0.55); text-transform: uppercase;
+  font-size: 15px; font-weight: 800;
+  color: #ffffff; text-transform: uppercase;
   letter-spacing: 1.2px;
 }
 
@@ -161,8 +161,8 @@
   transform: translateY(-2px);
   box-shadow: 0 10px 32px rgba(0,0,0,0.38);
 }
-.card h4 { margin: 0 0 6px; font-size: 17px; font-weight: 800; color: #ffffff; }
-.card p  { margin: 3px 0; font-size: 14.5px; color: rgba(255,255,255,0.82); }
+.card h4 { margin: 0 0 6px; font-size: 20px; font-weight: 800; color: #ffffff; }
+.card p  { margin: 3px 0; font-size: 16px; color: #ffffff; }
 
 .student-avatar {
   width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
@@ -173,7 +173,7 @@
 }
 
 .meta-chip {
-  font-size: 12px; color: rgba(255,255,255,0.80);
+  font-size: 14px; color: #ffffff;
   background: rgba(255,255,255,0.09);
   padding: 4px 12px; border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -187,10 +187,10 @@
 .degree-toggle {
   display: flex; align-items: center; gap: 6px;
   padding: 9px 16px; border-radius: 11px;
-  font-size: 13px; font-weight: 700; font-family: var(--font);
+  font-size: 14px; font-weight: 700; font-family: var(--font);
   background: rgba(255,255,255,0.09);
   border: 1px solid rgba(255,255,255,0.15);
-  color: rgba(255,255,255,0.85); cursor: pointer; transition: all .2s;
+  color: #ffffff; cursor: pointer; transition: all .2s;
   white-space: nowrap;
 }
 .degree-toggle:hover, .degree-toggle--open {
@@ -205,32 +205,32 @@
   background: rgba(0,0,0,0.18);
 }
 .degrees-panel__title {
-  font-size: 11px; font-weight: 800; letter-spacing: 1px;
-  color: rgba(255,255,255,0.45); text-transform: uppercase; margin-bottom: 14px;
+  font-size: 13px; font-weight: 800; letter-spacing: 1px;
+  color: rgba(255,255,255,0.90); text-transform: uppercase; margin-bottom: 14px;
 }
 .degree-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 13px 18px; border-radius: 13px; border: 1px solid;
 }
-.degree-row div div:first-child { color: #ffffff !important; }
-.degree-row div div:last-child  { color: rgba(255,255,255,0.60) !important; }
+.degree-row div div:first-child { color: #ffffff !important; font-size: 16px !important; font-weight: 700 !important; }
+.degree-row div div:last-child  { color: rgba(255,255,255,0.90) !important; font-size: 14px !important; }
 
 /* ===== CERT CARDS ===== */
 .card.cert {
   display: flex; justify-content: space-between; align-items: center;
   padding: 24px 28px;
 }
-.card.cert h4 { font-size: 17px; font-weight: 800; color: #ffffff; margin: 0 0 6px; }
-.card.cert p  { font-size: 14.5px; color: rgba(255,255,255,0.82); }
+.card.cert h4 { font-size: 20px; font-weight: 800; color: #ffffff; margin: 0 0 6px; }
+.card.cert p  { font-size: 16px; color: #ffffff; }
 
 .cert-number {
-  font-size: 12px !important; font-family: var(--mono);
-  color: rgba(255,255,255,0.45) !important; margin-top: 6px !important; letter-spacing: .6px;
+  font-size: 14px !important; font-family: var(--mono);
+  color: #ffffff !important; margin-top: 6px !important; letter-spacing: .6px;
 }
 .cert-status {
   display: inline-block; margin-top: 8px;
   padding: 4px 12px; border-radius: 999px;
-  font-size: 11px; font-weight: 800;
+  font-size: 12px; font-weight: 800;
   text-transform: uppercase; letter-spacing: .6px;
 }
 .cert-status--issued  { background: rgba(34,197,94,.16);  color: #4ade80; border: 1px solid rgba(34,197,94,.30); }
@@ -244,7 +244,7 @@
   display: flex; align-items: center;
   background: linear-gradient(135deg, var(--accent), var(--accent-h));
   border: none; padding: 10px 20px; border-radius: 12px;
-  color: white; font-weight: 700; font-size: 13px;
+  color: white; font-weight: 700; font-size: 14px;
   font-family: var(--font); cursor: pointer; transition: all .2s;
   box-shadow: 0 3px 10px rgba(232,24,14,0.36);
   letter-spacing: 0.1px;
@@ -252,7 +252,7 @@
 .card .view:hover { box-shadow: 0 6px 18px rgba(232,24,14,0.54); transform: translateY(-2px); }
 
 /* ===== EMPTY STATE ===== */
-.empty { text-align: center; padding: 36px; color: rgba(255,255,255,0.38); font-size: 15px; }
+.empty { text-align: center; padding: 36px; color: #ffffff; font-size: 16px; }
 
 /* ===== MODALS ===== */
 .modal {
@@ -311,7 +311,7 @@
   letter-spacing: -0.5px !important;
 }
 
-.modal-subtitle  { margin: 5px 0 0; font-size: 13px; color: var(--text-3); }
+.modal-subtitle  { margin: 5px 0 0; font-size: 14px; color: #ffffff; }
 
 .modal-close {
   background: rgba(255,255,255,0.07); border: 1px solid var(--border);
@@ -325,23 +325,23 @@
 .form-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 
 .form-label {
-  font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  font-size: 13px; font-weight: 700; color: #ffffff;
   letter-spacing: .3px;
   display: flex; align-items: center; gap: 8px;
 }
 
 /* Larger label variant (Add Student modal) */
 .form-label--lg {
-  font-size: 14px !important;
+  font-size: 15px !important;
   font-weight: 700;
-  color: rgba(255,255,255,0.85) !important;
+  color: #ffffff !important;
 }
 
 .form-input {
   padding: 12px 14px; border-radius: 11px;
   border: 1.5px solid rgba(255,255,255,0.11);
   background: rgba(255,255,255,0.06);
-  color: white; font-size: 14.5px; font-family: var(--font); outline: none;
+  color: white; font-size: 15px; font-family: var(--font); outline: none;
   width: 100%; transition: all .15s;
 }
 .form-input:focus {
@@ -353,7 +353,7 @@
 /* Larger input variant */
 .form-input--lg {
   padding: 14px 16px !important;
-  font-size: 15.5px !important;
+  font-size: 16px !important;
   border-radius: 12px !important;
 }
 .form-input--lg:focus {
@@ -365,7 +365,7 @@
   padding: 11px 14px; border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.11);
   background: rgba(255,255,255,0.06);
-  color: white; font-size: 14.5px; font-family: var(--font); outline: none;
+  color: white; font-size: 15px; font-family: var(--font); outline: none;
   width: 100%; appearance: none; cursor: pointer; transition: all .15s;
 }
 .form-select:focus   { border-color: rgba(232,24,14,0.55); }
@@ -373,8 +373,8 @@
 .form-select option  { background: #172540; }
 
 .form-section-label {
-  font-size: 10.5px; font-weight: 800; letter-spacing: .8px;
-  text-transform: uppercase; color: var(--text-3);
+  font-size: 13px; font-weight: 800; letter-spacing: .8px;
+  text-transform: uppercase; color: #ffffff;
   margin: 18px 0 12px; padding-bottom: 8px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
 }
@@ -382,18 +382,18 @@
 .form-error {
   padding: 11px 15px; border-radius: 11px; margin-bottom: 16px;
   background: rgba(232,24,14,0.09); border: 1px solid rgba(232,24,14,0.22);
-  color: #ff9090; font-size: 13.5px;
+  color: #ff9090; font-size: 14px;
 }
 
 .nid-badge {
   padding: 10px 15px; border-radius: 10px; margin-bottom: 14px;
-  font-size: 13px; font-weight: 600; border: 1px solid;
+  font-size: 14px; font-weight: 600; border: 1px solid;
 }
 
 .form-empty-note {
   padding: 13px 15px; border-radius: 10px;
   background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-  color: var(--text-3); font-size: 13.5px;
+  color: rgba(255,255,255,0.70); font-size: 14px;
 }
 
 /* ── Academic Programme section ── */
@@ -404,7 +404,7 @@
   align-items: center;
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   background: rgba(34,197,94,0.14);
   color: #4ade80;
@@ -420,8 +420,8 @@
 
 /* Hint text shown under the degree label when no major selected */
 .degree-hint-text {
-  font-size: 12px;
-  color: rgba(255,255,255,0.35);
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
   margin: 0 0 6px;
   font-style: italic;
 }
@@ -451,10 +451,10 @@
 .cert-success-box { text-align: center; }
 .cert-success-icon { display: flex; justify-content: center; margin-bottom: 12px; }
 .cert-success-name   { font-size: 18px; font-weight: 800; margin: 5px 0; letter-spacing: -0.3px; }
-.cert-success-detail { font-size: 14px; color: var(--text-2); margin: 3px 0; }
+.cert-success-detail { font-size: 15px; color: var(--text-2); margin: 3px 0; }
 .qr-wrapper { margin: 18px auto 8px; display: inline-block; background: white; border-radius: 14px; padding: 11px; }
 .qr-img     { display: block; width: 155px; height: 155px; }
-.qr-hint    { font-size: 11.5px; color: #888; margin: 7px 0 0; text-align: center; }
+.qr-hint    { font-size: 15px; color: #ffffff; margin: 7px 0 0; text-align: center; }
 .cert-success-box .modal-actions { justify-content: center; }
 
 /* ── EDIT RECORD BUTTON ── */
@@ -466,8 +466,8 @@
   border-radius: 9px;
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.07);
-  color: var(--text-2);
-  font-size: 11.5px;
+  color: #ffffff;
+  font-size: 13px;
   font-weight: 700;
   font-family: var(--font);
   cursor: pointer;
@@ -491,7 +491,7 @@
   background: rgba(239,68,68,0.08);
   border: 1px solid rgba(239,68,68,0.25);
   color: #fca5a5;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.55;
   margin-bottom: 8px;
 }
@@ -502,8 +502,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11.5px;
-  color: var(--text-3);
+  font-size: 12px;
+  color: rgba(255,255,255,0.70);
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--border);
   border-radius: 7px;

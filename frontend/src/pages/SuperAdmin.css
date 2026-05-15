@@ -11,8 +11,8 @@ body { margin: 0; overflow-x: hidden; }
   --gold:      #f5c840;
   --green:     #3ddf98;
   --text-1:    #ffffff;
-  --text-2:    rgba(255,255,255,0.72);
-  --text-3:    rgba(255,255,255,0.42);
+  --text-2:    rgba(255,255,255,0.90);
+  --text-3:    rgba(255,255,255,0.65);
   --border:    rgba(255,255,255,0.09);
   --border-h:  rgba(255,255,255,0.17);
   --font:      'DM Sans', sans-serif;
@@ -134,8 +134,8 @@ body { margin: 0; overflow-x: hidden; }
 }
 
 .stat-card__label {
-  font-size: 13px; font-weight: 600;
-  color: var(--text-2); letter-spacing: 0.2px;
+  font-size: 14px; font-weight: 700;
+  color: #ffffff; letter-spacing: 0.2px;
 }
 .stat-card--active .stat-card__label { color: var(--gold); }
 .stat-card--secure .stat-card__label { color: var(--green); }
@@ -251,18 +251,18 @@ body { margin: 0; overflow-x: hidden; }
 .modal-body { display: flex; flex-direction: column; gap: 14px; }
 
 .modal-body label {
-  color: var(--text-2); font-size: 14px; font-weight: 600; margin-bottom: -6px;
+  color: #ffffff; font-size: 15px; font-weight: 700; margin-bottom: -6px;
 }
 
 .modal-body input {
   padding: 14px 15px; border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.07); color: white;
-  font-size: 14.5px; font-family: var(--font); outline: none;
+  font-size: 16px; font-family: var(--font); outline: none;
   transition: border-color 0.2s;
 }
 .modal-body input:focus { border-color: rgba(232,24,14,0.55); }
-.modal-body input::placeholder { color: var(--text-3); }
+.modal-body input::placeholder { color: rgba(255,255,255,0.55); }
 
 .modal-submit {
   margin-top: 8px; padding: 14px;
@@ -302,8 +302,8 @@ body { margin: 0; overflow-x: hidden; }
 .admin-title-row { display: flex; align-items: center; gap: 10px; }
 .admin-icon  { color: var(--gold); flex-shrink: 0; }
 .admin-name  { font-size: 20px; font-weight: 800; margin: 0; color: white; letter-spacing: -0.3px; }
-.admin-email { font-size: 14.5px; color: var(--text-2); margin: 0; }
-.admin-uni   { font-size: 13px; color: rgba(143,163,200,1); margin: 0; }
+.admin-email { font-size: 15px; color: #ffffff; margin: 0; }
+.admin-uni   { font-size: 14px; color: rgba(180,210,255,1); margin: 0; }
 
 .admin-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 
@@ -329,3 +329,93 @@ body { margin: 0; overflow-x: hidden; }
 .resend-btn:hover { background: var(--accent); color: white; border-color: transparent; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(232,24,14,0.40); }
 
 .admin-empty-text { color: rgba(140,160,192,0.7); text-align: center; margin-top: 40px; font-size: 15px; }
+/* Deactivated card */
+.admin-card.deactivated {
+  background: rgba(40, 40, 60, 0.80);
+  border-color: rgba(120, 120, 160, 0.30);
+  opacity: 0.75;
+}
+
+/* Deactivated badge */
+.status-badge.deactivated {
+  background: rgba(120, 120, 160, 0.14);
+  color: #9090b0;
+  border: 1px solid rgba(120, 120, 160, 0.28);
+}
+
+/* Activate button (green) */
+.btn-activate {
+  border-color: rgba(61, 223, 152, 0.35) !important;
+  background: rgba(61, 223, 152, 0.08) !important;
+  color: #3ddf98 !important;
+}
+.btn-activate:hover {
+  background: #3ddf98 !important;
+  color: #0c1730 !important;
+}
+
+/* Deactivate button (red) */
+.btn-deactivate {
+  border-color: rgba(232, 24, 14, 0.30) !important;
+  background: rgba(232, 24, 14, 0.08) !important;
+  color: #ff9090 !important;
+}
+.btn-deactivate:hover {
+  background: var(--accent) !important;
+  color: white !important;
+}
+
+/* Deactivated card */
+.admin-card.deactivated {
+  background: rgba(30, 30, 50, 0.75);
+  border-color: rgba(100, 100, 140, 0.28);
+  opacity: 0.72;
+}
+
+/* Deactivated badge */
+.status-badge.deactivated {
+  background: rgba(100, 100, 150, 0.14);
+  color: #8888aa;
+  border: 1px solid rgba(100, 100, 150, 0.28);
+}
+
+/* Activate button */
+.btn-activate {
+  border-color: rgba(61, 223, 152, 0.35) !important;
+  background:   rgba(61, 223, 152, 0.08) !important;
+  color: #3ddf98 !important;
+}
+.btn-activate:hover {
+  background: #3ddf98 !important;
+  color: #0c1730 !important;
+  border-color: transparent !important;
+}
+
+/* Deactivate button */
+.btn-deactivate {
+  border-color: rgba(232, 24, 14, 0.30) !important;
+  background:   rgba(232, 24, 14, 0.08) !important;
+  color: #ff9090 !important;
+}
+.btn-deactivate:hover {
+  background: var(--accent) !important;
+  color: white !important;
+  border-color: transparent !important;
+}
+
+/* Add Admin button */
+.btn-add-admin {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(61, 223, 152, 0.12);
+  color: #3ddf98; font-size: 14.5px; font-weight: 700;
+  padding: 12px 22px; border: 1px solid rgba(61, 223, 152, 0.30);
+  border-radius: 14px; cursor: pointer; font-family: var(--font);
+  transition: all 0.2s;
+}
+.btn-add-admin:hover {
+  background: #3ddf98;
+  color: #0c1730;
+  border-color: transparent;
+  transform: translateY(-2px);
+  box-shadow: 0 7px 24px rgba(61, 223, 152, 0.35);
+}

@@ -27,7 +27,9 @@ html, body, #root {
 
 body {
   margin: 0;
+  background: #0d1a3a; /* ← solid fallback first */
   background: linear-gradient(160deg, #0d1a3a 0%, #112150 60%, #0a1428 100%);
+  background-attachment: fixed; /* ← this is the key fix — gradient covers the whole viewport as one */
   font-family: var(--font);
   color: var(--text-1);
   min-height: 100vh;
@@ -40,6 +42,7 @@ body {
   min-height: 100vh;
 }
 
+/* ===== 03: NAVBAR ===== */
 /* ===== 03: NAVBAR ===== */
 nav {
   position: sticky;
@@ -56,7 +59,7 @@ nav {
   align-items: center;
   gap: 12px;
   justify-content: space-between;
-  margin-bottom: 2rem;
+  margin-bottom: 0; /* ← was 2rem, causing the gap */
 }
 
 .logo {

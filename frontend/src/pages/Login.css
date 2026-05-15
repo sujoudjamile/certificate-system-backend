@@ -85,9 +85,9 @@ body {
 
 .subtitle {
   text-align: center;
-  color: rgba(255,255,255,0.55);
+  color: #ffffff;
   margin-bottom: 28px;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* ── ROLE SELECTOR ── */
@@ -107,12 +107,12 @@ body {
   padding: 11px 8px;
   border: none;
   background: transparent;
-  color: rgba(255,255,255,0.55);
+  color: #ffffff;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.22s;
   font-family: 'DM Sans', sans-serif;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -145,7 +145,7 @@ body {
 
 .role-icon    { font-size: 24px; }
 .role-title   { color: white; font-weight: 700; font-size: 15px; margin-bottom: 2px; }
-.role-desc    { color: rgba(255,255,255,0.52); font-size: 13px; }
+.role-desc    { color: #ffffff; font-size: 14px; }
 .role-main-icon { color: #e8180e; }
 
 /* ── LABELS & INPUTS ── */
@@ -153,8 +153,8 @@ body {
   display: block;
   margin-bottom: 7px;
   margin-top: 14px;
-  color: rgba(255,255,255,0.75);
-  font-size: 14px;
+  color: #ffffff;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -178,7 +178,7 @@ body {
   background: rgba(255,255,255,0.09);
 }
 
-.input::placeholder { color: rgba(255,255,255,0.30); }
+.input::placeholder { color: rgba(255,255,255,0.75); }
 
 /* ── PASSWORD ── */
 .password-container {
