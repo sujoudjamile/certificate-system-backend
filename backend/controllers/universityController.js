@@ -248,6 +248,14 @@ const createUniversity = asyncHandler(async (req, res) => {
   }
 });
 
+const getAllUniversities = asyncHandler(async (req, res) => {
+  const [rows] = await db.query(
+    "SELECT id, name FROM universities ORDER BY name ASC"
+  );
+  res.json({ status: "success", universities: rows });
+});
+
 module.exports = {
   createUniversity,
+  getAllUniversities,
 };

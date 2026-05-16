@@ -3,7 +3,9 @@
 const express = require("express");
 const router = express.Router();
 
-const { createUniversity } = require("../controllers/universityController");
+const { createUniversity,
+        getAllUniversities,
+ } = require("../controllers/universityController");
 
 const authenticateToken = require("../middleware/authMiddleware");
 const authorizeRoles = require("../middleware/roleMiddleware");
@@ -38,5 +40,7 @@ router.post(
   }
 );
 
+// In your universities routes file
+router.get("/", authenticateToken, authorizeRoles("super_admin"), getAllUniversities);
 
 module.exports = router;

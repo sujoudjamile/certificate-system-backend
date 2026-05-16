@@ -136,6 +136,10 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new AppError("Please verify your account first.", 403);
   }
 
+  if (!user.is_active) {
+  throw new AppError("Your account has been deactivated. Contact the system administrator.", 403);
+}
+
   // Extra protection in case password is null
   if (!user.password) {//Check password exists
     throw new AppError("Account is not ready for login yet.", 403);
@@ -340,6 +344,8 @@ const getAllAdminsWithStatus = asyncHandler(async (req, res) => {
       u.name,
       u.email,
       u.is_verified,
+      u.is_active,
+      u.university_id,
       u.verification_expires,
       un.name AS university_name
     FROM users u
@@ -386,6 +392,139 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     user: rows[0],
   });
 });
+/*
+==================================
+TOGGLE ADMIN ACTIVE STATUS
+==================================
+Super admin can activate or deactivate a university admin.
+*/
+const toggleAdminStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const [rows] = await db.query(
+    "SELECT id, name, email, is_active, role, university_id FROM users WHERE id = ?",
+    [id]
+  );
+
+  if (rows.length === 0) throw new AppError("User not found", 404);
+  if (rows[0].role !== "admin") throw new AppError("You can only toggle university admins", 403);
+
+  const user      = rows[0];
+  const newStatus = user.is_active ? 0 : 1;
+
+  // ── Block activation if another active admin already exists for this university ──
+  if (newStatus === 1) {
+    const [activeAdmins] = await db.query(
+      `SELECT id FROM users 
+       WHERE university_id = ? 
+         AND role        = 'admin' 
+         AND is_active   = 1 
+         AND id         != ?`,
+      [user.university_id, id]
+    );
+
+    if (activeAdmins.length > 0) {
+      throw new AppError(
+        "This university already has an active admin. Deactivate the current active admin first before activating another one.",
+        400
+      );
+    }
+  }
+
+  await db.query("UPDATE users SET is_active = ? WHERE id = ?", [newStatus, id]);
+
+  return res.json({
+    status:    "success",
+    message:   `Admin ${newStatus ? "activated" : "deactivated"} successfully`,
+    is_active: newStatus,
+  });
+});
+
+/*
+==================================
+ADD ADMIN TO EXISTING UNIVERSITY
+==================================
+Super admin assigns a new admin to a university that already exists.
+The university must not already have an active verified admin.
+*/
+const addAdminToUniversity = asyncHandler(async (req, res) => {
+  const { adminName, adminEmail, university_id } = req.body;
+
+  if (!adminName || !adminEmail || !university_id)
+    throw new AppError("adminName, adminEmail and university_id are required", 400);
+
+  if (!isValidEmail(adminEmail))
+    throw new AppError("Invalid email format", 400);
+
+  // Check university exists
+  const [uniRows] = await db.query(
+    "SELECT id, name FROM universities WHERE id = ?",
+    [university_id]
+  );
+  if (uniRows.length === 0) throw new AppError("University not found", 404);
+  const university = uniRows[0];
+
+  // Check email not already taken
+  const [existingUser] = await db.query(
+    "SELECT id FROM users WHERE email = ?",
+    [adminEmail]
+  );
+  if (existingUser.length > 0)
+    throw new AppError("A user with this email already exists", 400);
+
+  // Check if university already has an active verified admin
+  const [activeAdmin] = await db.query(
+    "SELECT id FROM users WHERE university_id = ? AND role = 'admin' AND is_verified = 1 AND is_active = 1",
+    [university_id]
+  );
+  if (activeAdmin.length > 0)
+    throw new AppError(
+      "This university already has an active admin. Deactivate the current admin first.",
+      400
+    );
+
+  const verificationToken   = require("crypto").randomBytes(32).toString("hex");
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  const [result] = await db.query(
+    `INSERT INTO users
+     (name, email, password, role, university_id, is_verified, verification_token, verification_expires)
+     VALUES (?, ?, NULL, 'admin', ?, 0, ?, ?)`,
+    [adminName, adminEmail, university_id, verificationToken, verificationExpires]
+  );
+
+  // Update universities.admin_id to point to new admin
+  await db.query("UPDATE universities SET admin_id = ? WHERE id = ?", [result.insertId, university_id]);
+
+  const verifyLink = `${process.env.FRONTEND_URL}/activate-account?token=${verificationToken}`;
+
+  try {
+    await require("../utils/sendEmail")({
+      to: adminEmail,
+      subject: "Activate your CertifyLB university admin account",
+      html: `
+        <h2>Welcome to CertifyLB</h2>
+        <p>You have been assigned as admin for <strong>${university.name}</strong>.</p>
+        <p>Click the link below to verify your email and set your password:</p>
+        <a href="${verifyLink}">${verifyLink}</a>
+        <p>This link expires in 24 hours.</p>
+      `,
+    });
+
+    return res.status(201).json({
+      status: "success",
+      message: "New admin created. Verification email sent.",
+      adminId: result.insertId,
+    });
+  } catch (emailErr) {
+    return res.status(201).json({
+      status: "warning",
+      message: "Admin created but email could not be sent.",
+      adminId: result.insertId,
+      emailError: emailErr.message,
+    });
+  }
+});
 
 module.exports = {
   loginUser,
@@ -394,4 +533,6 @@ module.exports = {
   resendActivationEmail,
   getAllAdminsWithStatus,
   getCurrentUser, 
+  toggleAdminStatus,
+  addAdminToUniversity,
 };

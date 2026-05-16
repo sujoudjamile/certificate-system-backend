@@ -77,6 +77,7 @@ const signWithVault = async (keyName, base64Input) => {
   // Returns "vault:v1:<base64signature>"
   return response.data.data.signature;
 };
+
  
 module.exports = {
   createVaultKey,

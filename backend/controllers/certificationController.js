@@ -361,26 +361,34 @@ await connection.query(
 
 
     // ── Step 7: Send email to student ──
-try {
-  const studentEmail = student.email; // make sure email exists in your SELECT
-  if (studentEmail && signedPdfBuffer) {
-    await sendEmail({
-      to: studentEmail,
-      subject: `Your Certificate ${cert_number}`,
-      text: `Hello ${student.full_name},\n\nYour certificate has been issued. Please find it attached.`,
-      attachments: [
-        {
-          filename: `certificate_${cert_number}.pdf`,
-          content: signedPdfBuffer,
-        },
-      ],
-    });
+    let emailSent       = false;
+    let emailFailReason = null;
+    const studentEmail  = student.email;
 
-    console.log(`📧 Certificate emailed to ${studentEmail}`);
-  }
-} catch (emailErr) {
-  console.error("❌ Email sending failed (non-fatal):", emailErr.message);
-}
+    try {
+      if (studentEmail && signedPdfBuffer) {
+        await sendEmail({
+          to:      studentEmail,
+          subject: `Your Certificate ${cert_number}`,
+          text:    `Hello ${student.full_name},\n\nYour certificate has been issued. Please find it attached.`,
+          attachments: [
+            {
+              filename: `certificate_${cert_number}.pdf`,
+              content:  signedPdfBuffer,
+            },
+          ],
+        });
+        emailSent = true;
+        console.log(`📧 Certificate emailed to ${studentEmail}`);
+      } else if (!studentEmail) {
+        emailFailReason = "Student has no email address on record";
+      } else {
+        emailFailReason = "PDF was not signed — email not sent";
+      }
+    } catch (emailErr) {
+      emailFailReason = emailErr.message;
+      console.error("❌ Email sending failed (non-fatal):", emailErr.message);
+    }
 
     return res.status(201).json({
       status: "success",
@@ -388,20 +396,24 @@ try {
         ? "Certificate issued successfully with PKCS#7 digital signature."
         : "Certificate issued. PDF signing skipped — check university X.509 configuration.",
       certificate: {
-        id:               certId,
+        id:                  certId,
         cert_number,
         certification_hash,
-        student:          student.full_name,
+        student:             student.full_name,
+        student_national_id: student.national_id,
         degree,
         major,
-        GPA:              GPA ?? null,
-        graduation_date:  normGradDate,
-        university:       university.name,
+        GPA:                 GPA ?? null,
+        graduation_date:     normGradDate,
+        university:          university.name,
         qr_code,
-        verify_url:       verifyUrl,
-        status:           "issued",
-        pdf_signed:       pdfSigned,
+        verify_url:          verifyUrl,
+        status:              "issued",
+        pdf_signed:          pdfSigned,
       },
+      email_sent:        emailSent,
+      student_email:     emailSent ? studentEmail : null,
+      email_fail_reason: emailFailReason,
 
       // Included so the admin dashboard can immediately show a warning
       // if fraud rules fired. Does not affect the certificate itself.

@@ -10,6 +10,8 @@ const {
   resendActivationEmail,
   getAllAdminsWithStatus,
   getCurrentUser,
+  toggleAdminStatus,
+  addAdminToUniversity,
 } = require("../controllers/userController");
 
 const authenticateToken = require("../middleware/authMiddleware");
@@ -53,5 +55,8 @@ router.get(
   authenticateToken,
   getCurrentUser
 );
+
+router.patch("/admins/:id/toggle-status", authenticateToken, authorizeRoles("super_admin"), toggleAdminStatus);
+router.post("/admins/add-to-university",   authenticateToken, authorizeRoles("super_admin"), addAdminToUniversity);
 
 module.exports = router;

@@ -161,28 +161,68 @@ GET STAFF
 */
 
 const getStaff = asyncHandler(async (req, res) => {
+   const universityId = req.user.university_id;
+  
+  // 1. Capture the search term from query params (e.g., ?search=jamil)
+  const searchTerm = req.query.search ? `%${req.query.search}%` : '%';
+
+  // 2. We use LOWER() to ensure "jamil" matches "Jamil"
   const [staffs] = await db.query(`
     SELECT 
-      u.id,
-      u.name,
-      u.email,
-      u.is_verified,
-      u.verification_expires,
+      u.id, u.name, u.email, u.is_verified, u.is_active,
       un.name AS university_name
     FROM users u
     LEFT JOIN universities un ON u.university_id = un.id
-    WHERE u.role = 'staff' AND u.university_id=?
-    ORDER BY u.is_verified ASC, u.created_at DESC
-  `, [req.user.university_id]);
+    WHERE u.role = 'staff' 
+      AND u.university_id = ?
+      AND (LOWER(u.name) LIKE LOWER(?) OR LOWER(u.email) LIKE LOWER(?))
+    ORDER BY u.created_at DESC
+  `, [universityId, searchTerm, searchTerm]);
 
   res.json({
     status: "success",
+    count: staffs.length,
     staffs,
   });
 });
+const toggleStaffStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { university_id } = req.user;
 
+  const [rows] = await db.query(
+    "SELECT id, name, email, is_active, role, university_id FROM users WHERE id = ?",
+    [id]
+  );
+
+  if (rows.length === 0) throw new AppError("Staff member not found", 404);
+  if (rows[0].role !== "staff") throw new AppError("User is not a staff member", 403);
+  if (rows[0].university_id !== university_id)
+    throw new AppError("Access forbidden", 403);
+
+  const newStatus = rows[0].is_active ? 0 : 1;
+
+  await db.query("UPDATE users SET is_active = ? WHERE id = ?", [newStatus, id]);
+
+  await logAction({
+    user_id:       req.user.id,
+    university_id: university_id,
+    action:        newStatus ? "ACTIVATE_STAFF" : "DEACTIVATE_STAFF",
+    description:   `${newStatus ? "Activated" : "Deactivated"} staff member ${rows[0].name} (${rows[0].email})`,
+    status:        "success",
+    target_type:   "staff",
+    target_id:     parseInt(id),
+    ip_address:    req.ip,
+  });
+
+  return res.json({
+    status:    "success",
+    message:   `Staff member ${newStatus ? "activated" : "deactivated"} successfully`,
+    is_active: newStatus,
+  });
+});
 
 module.exports = {
   addStaff,
-  getStaff
+  getStaff,
+  toggleStaffStatus,
 };

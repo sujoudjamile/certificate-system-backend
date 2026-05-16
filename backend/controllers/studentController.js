@@ -259,6 +259,17 @@ const addStudent = async (req, res) => {
       return res.status(400).json({ message: "Invalid email format." });
     }
 
+    // ── Email must not belong to a system user ──
+    const [userEmailCheck] = await db.query(
+      "SELECT id FROM users WHERE email = ?",
+      [email]
+    );
+    if (userEmailCheck.length > 0) {
+      return res.status(400).json({
+        message: "This email is already registered as a system user account and cannot be used for a student.",
+      });
+    }
+
     phone = phone.trim();
     if (!lebanonPhoneRegex.test(phone)) {
       return res.status(400).json({
@@ -404,6 +415,25 @@ const getStudents = async (req, res) => {
       });
     }
 
+    const search = req.query.search ? req.query.search.trim() : '';
+    const values = [university_id];
+    let whereClause = 'WHERE sr.university_id = ?';
+
+
+
+    if (search) {
+      whereClause += ` AND (
+          LOWER(sn.full_name) LIKE LOWER(?)
+          OR sn.national_id   LIKE ?
+          OR sr.student_code  LIKE ?
+          OR LOWER(sr.email)  LIKE LOWER(?)
+          OR LOWER(sr.degree) LIKE LOWER(?)
+          OR LOWER(sr.major)  LIKE LOWER(?)
+        )`;
+      const like = '%' + search + '%';
+      values.push(like, like, like, like, like, like);
+    }
+
     const [rows] = await db.query(
       `SELECT
          sr.id          AS record_id,
@@ -420,12 +450,12 @@ const getStudents = async (req, res) => {
          sr.created_at  AS enrolled_at
        FROM students_new sn
        JOIN student_records sr ON sr.student_id = sn.id
-       WHERE sr.university_id = ?
+       ${whereClause}
        ORDER BY sn.full_name ASC, sr.created_at ASC`,
-      [university_id]
+      values
     );
-
-    res.json({ status: "success", students: rows });
+ 
+    res.json({ status: 'success', students: rows });
   } catch (error) {
     console.error("GET STUDENTS ERROR:", error);
     res.status(500).json({ message: error.message });
@@ -613,6 +643,18 @@ const updateStudent = async (req, res) => {
       if (!emailRegex.test(email)) {
         return res.status(400).json({ message: "Invalid email format." });
       }
+
+      // ── Email must not belong to a system user ──
+      const [userEmailCheck] = await db.query(
+        "SELECT id FROM users WHERE email = ?",
+        [email]
+      );
+      if (userEmailCheck.length > 0) {
+        return res.status(400).json({
+          message: "This email is already registered as a system user account and cannot be used for a student.",
+        });
+      }
+
       recordUpdates.push("email = ?");
       recordValues.push(email);
     }

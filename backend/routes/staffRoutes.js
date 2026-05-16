@@ -5,6 +5,7 @@ const router = express.Router();
 
 const { addStaff ,
         getStaff,
+        toggleStaffStatus,
 } = require("../controllers/staffController");
 
 const authenticateToken = require("../middleware/authMiddleware");
@@ -31,5 +32,6 @@ router.get(
   authorizeRoles("admin"),
   getStaff
 );
+router.patch("/:id/toggle-status", authenticateToken, authorizeRoles("admin"), toggleStaffStatus);
 
 module.exports = router;
