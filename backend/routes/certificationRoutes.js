@@ -16,6 +16,7 @@ const {
   getRevokedCertificates,
   requestReissue,
   allowReissue,
+  neverReissue,
 } = require("../controllers/certificationController");
 
 const authenticateToken = require("../middleware/authMiddleware");
@@ -89,6 +90,12 @@ router.patch(
   allowReissue
 );
 
+router.patch(
+  "/:id/never-reissue",
+  authenticateToken,
+  authorizeRoles("admin", "super_admin"),
+  neverReissue
+);
 // Staff requests admin approval to reissue
 router.post(
   "/:id/request-reissue",

@@ -29,6 +29,8 @@ const isStrongPassword = (password) => {//prevents weak passwords
   return passwordRegex.test(password);
 };
 
+
+
 // Common password blacklist
 const isCommonPassword = (password) => {//prevents easy-to-guess passwords
   const commonPasswords = [
@@ -55,6 +57,15 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!name || !email || !password || !role) {
     throw new AppError("All fields are required", 400);
   }
+
+  const nameRegex = /^[a-zA-Z\u0600-\u06FF]+([ '-][a-zA-Z\u0600-\u06FF]+)+$/;
+
+if (!nameRegex.test(name.trim())) {
+  throw new AppError(
+    "Name must contain at least a first and last name, using letters only (no digits or special characters).",
+    400
+  );
+}
 
   if (!isValidEmail(email)) {
     throw new AppError("Invalid email format", 400);
@@ -452,6 +463,15 @@ const addAdminToUniversity = asyncHandler(async (req, res) => {
 
   if (!adminName || !adminEmail || !university_id)
     throw new AppError("adminName, adminEmail and university_id are required", 400);
+
+  const nameRegex = /^[a-zA-Z\u0600-\u06FF]+([ '-][a-zA-Z\u0600-\u06FF]+)+$/;
+
+  if (!nameRegex.test(adminName.trim())) {
+  throw new AppError(
+    "Name must contain at least a first and last name, using letters only (no digits or special characters).",
+    400
+  );
+}
 
   if (!isValidEmail(adminEmail))
     throw new AppError("Invalid email format", 400);

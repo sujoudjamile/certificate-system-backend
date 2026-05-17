@@ -60,8 +60,43 @@ const addExternalDegree = asyncHandler(async (req, res) => {
       400
     );
 
+  // ── Field validations ──
+
+  // National ID: digits only, 6–12 chars
+  if (!/^\d{6,12}$/.test(national_id.trim()))
+    throw new AppError("National ID must be 6–12 digits with no letters or special characters.", 400);
+
+  // Degree
   if (!["Bachelor", "Master"].includes(degree))
     throw new AppError("External degree must be Bachelor or Master", 400);
+
+  // Major: letters and spaces only
+  const majorRegex = /^[a-zA-Z\u0600-\u06FF]+(?:[ '-][a-zA-Z\u0600-\u06FF]+)*$/;
+  if (!majorRegex.test(major.trim()))
+    throw new AppError("Major must contain letters only (no digits or special characters).", 400);
+
+  // Institution: letters, digits, spaces, and basic punctuation
+  const institutionRegex = /^[a-zA-Z\u0600-\u06FF0-9][a-zA-Z\u0600-\u06FF0-9 '.&,-]{2,}$/;
+  if (!institutionRegex.test(institution.trim()))
+    throw new AppError(
+      "Institution name must be at least 3 characters and can only contain letters, numbers, spaces, and basic punctuation.",
+      400
+    );
+
+  // Country: letters and spaces only
+  const countryRegex = /^[a-zA-Z\u0600-\u06FF]+(?:[ '-][a-zA-Z\u0600-\u06FF]+)*$/;
+  if (!countryRegex.test(country.trim()))
+    throw new AppError("Country must contain letters only (no digits or special characters).", 400);
+
+  // Graduation year: 4-digit number, between 1900 and current year
+  const currentYear = new Date().getFullYear();
+  const parsedYear  = parseInt(graduation_year, 10);
+  if (!/^\d{4}$/.test(String(graduation_year)) || parsedYear < 1900 || parsedYear > currentYear)
+    throw new AppError(`Graduation year must be a valid 4-digit year between 1900 and ${currentYear}.`, 400);
+
+  // Notes: optional, max 500 characters
+  if (notes && notes.trim().length > 500)
+    throw new AppError("Notes must not exceed 500 characters.", 400);
 
   // ── Step 1: Look up student by national_id ──
   const [studentRows] = await db.query(
@@ -80,8 +115,31 @@ const addExternalDegree = asyncHandler(async (req, res) => {
         404
       );
 
-    if (!/^\d{6,12}$/.test(national_id))
-      throw new AppError("National ID must be 6–12 digits.", 400);
+    // Full name: first + last name, letters only
+    const nameRegex = /^[a-zA-Z\u0600-\u06FF]+([ '-][a-zA-Z\u0600-\u06FF]+)+$/;
+    if (!nameRegex.test(full_name.trim()))
+      throw new AppError(
+        "Full name must contain at least a first and last name, using letters only (no digits or special characters).",
+        400
+      );
+
+    // Date of birth: must be YYYY-MM-DD format
+    const dobRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+    if (!dobRegex.test(date_of_birth))
+      throw new AppError("Date of birth must be in YYYY-MM-DD format (e.g. 1997-05-20).", 400);
+
+    const dob = new Date(date_of_birth);
+    if (isNaN(dob.getTime()) || dob >= new Date())
+      throw new AppError("Date of birth must be a valid date and cannot be in the future.", 400);
+
+    // Cross-check: minimum age at graduation based on degree
+    const birthYear = dob.getFullYear();
+    const minAge    = degree === "Master" ? 20 : 18;
+    if (parsedYear - birthYear < minAge)
+      throw new AppError(
+        `Graduation year is not valid. A student cannot graduate with a ${degree}'s degree at age ${parsedYear - birthYear}.`,
+        400
+      );
 
     const [newStudent] = await db.query(
       "INSERT INTO students_new (full_name, national_id, date_of_birth) VALUES (?, ?, DATE(?))",
@@ -98,31 +156,28 @@ const addExternalDegree = asyncHandler(async (req, res) => {
   // 2b. If adding a Master, enforce prerequisite Bachelor in same major
   if (degreeLevel === "graduate") {
 
-    // Check external_degrees for a Bachelor in same major
     const [extPrereq] = await db.query(
       `SELECT id FROM external_degrees
        WHERE student_id = ? AND degree = 'Bachelor' AND major = ?`,
       [studentId, major.trim()]
     );
 
-    // Check student_records for an undergraduate in same major
     const [intPrereq] = await db.query(
-  `SELECT sr.id
-   FROM student_records sr
-   JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
-   WHERE sr.student_id = ?
-     AND sr.major      = ?
-     AND d.level       = 'undergraduate'`,
-  [studentId, major.trim()]
-);
+      `SELECT sr.id
+       FROM student_records sr
+       JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
+       WHERE sr.student_id = ?
+         AND sr.major      = ?
+         AND d.level       = 'undergraduate'`,
+      [studentId, major.trim()]
+    );
 
-    if (extPrereq.length === 0 && intPrereq.length === 0) {
+    if (extPrereq.length === 0 && intPrereq.length === 0)
       throw new AppError(
         `Cannot register a Master's degree in "${major}" without a prior Bachelor's degree ` +
         `in the same major. Please register the Bachelor's degree first.`,
         400
       );
-    }
   }
 
   // 2c. Prevent duplicate in external_degrees
@@ -131,29 +186,27 @@ const addExternalDegree = asyncHandler(async (req, res) => {
      WHERE student_id = ? AND degree = ? AND major = ?`,
     [studentId, degree, major.trim()]
   );
-  if (extDuplicate.length > 0) {
+  if (extDuplicate.length > 0)
     throw new AppError(
       `This student already has an external ${degree} in "${major}" registered.`,
       409
     );
-  }
 
   // 2d. Prevent duplicate in student_records
   const [intDuplicate] = await db.query(
-  `SELECT sr.id
-   FROM student_records sr
-   JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
-   WHERE sr.student_id = ?
-     AND sr.major      = ?
-     AND d.level       = ?`,
-  [studentId, major.trim(), degreeLevel]
-);
-  if (intDuplicate.length > 0) {
+    `SELECT sr.id
+     FROM student_records sr
+     JOIN degrees d ON d.name COLLATE utf8mb4_general_ci = sr.degree
+     WHERE sr.student_id = ?
+       AND sr.major      = ?
+       AND d.level       = ?`,
+    [studentId, major.trim(), degreeLevel]
+  );
+  if (intDuplicate.length > 0)
     throw new AppError(
       `This student already has an internal ${degree} in "${major}" recorded in the system.`,
       409
     );
-  }
 
   // ── Step 3: Insert external degree ──
   const document_path = req.file ? req.file.path : null;
@@ -194,7 +247,6 @@ const addExternalDegree = asyncHandler(async (req, res) => {
     student_id: studentId,
   });
 });
-
 /*
 ==================================
 GET ALL EXTERNAL DEGREES

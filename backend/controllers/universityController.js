@@ -30,6 +30,13 @@ const createUniversity = asyncHandler(async (req, res) => {
     throw new AppError("All fields are required", 400);
   }
 
+   const nameRegex = /^[a-zA-Z\u0600-\u06FF]+([ '-][a-zA-Z\u0600-\u06FF]+)+$/;
+  if (!nameRegex.test(adminName.trim())) {
+    throw new AppError(
+      "Admin name must contain at least a first and last name, using letters only (no digits or special characters).",
+      400
+    );
+  }
   // 🧹 Clean + format university name
   universityName = universityName?.trim();
 

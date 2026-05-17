@@ -325,33 +325,49 @@ function RevokeConfirmModal({ flag, onConfirm, onCancel, loading }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SINGLE FRAUD FLAG CARD
+// GROUPED FRAUD FLAG CARD  (one card per certificate)
 // ─────────────────────────────────────────────────────────────
-function FlagCard({ flag, onDismiss, onResolve }) {
-  const [expanded, setExpanded] = useState(false);
-  const [showRevoke, setShowRevoke] = useState(false);
+function GroupedFlagCard({ flags, onDismiss, onResolve }) {
+  const [expanded,      setExpanded]      = useState(false);
+  const [showRevoke,    setShowRevoke]    = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const isPending = flag.flag_status === "pending";
-  const isRevoked = flag.cert_status === "revoked";
+  // All flags share the same certificate — use the first for header info
+  const primary   = flags[0];
+  const isPending = flags.some((f) => f.flag_status === "pending");
+  const isRevoked = primary.cert_status === "revoked";
+
+  // Aggregate risk across all flags for this certificate
+  const totalRisk = flags.reduce((sum, f) => sum + parseFloat(f.risk_score || 0), 0);
+
+  // Overall status: if any are pending → pending, else resolved/dismissed
+  const overallStatus = isPending
+    ? "pending"
+    : flags.every((f) => f.flag_status === "resolved")
+    ? "resolved"
+    : flags.every((f) => f.flag_status === "dismissed")
+    ? "dismissed"
+    : "mixed";
 
   const statusColor = {
-    pending: "#f59e0b", resolved: "#22c55e", dismissed: "#64748b", reviewed: "#60b0ff",
-  }[flag.flag_status] || "#94a3b8";
+    pending:  "#f59e0b",
+    resolved: "#22c55e",
+    dismissed:"#64748b",
+    mixed:    "#60b0ff",
+  }[overallStatus];
 
-  const statusIcon = {
-    pending: <Clock size={13} />, resolved: <XCircle size={13} />, dismissed: <CheckCircle2 size={13} />,
-  }[flag.flag_status];
-
-  const handleDismiss = async () => {
+  const handleDismissAll = async () => {
     setActionLoading(true);
-    await onDismiss(flag.flag_id);
+    const pendingFlags = flags.filter((f) => f.flag_status === "pending");
+    for (const f of pendingFlags) await onDismiss(f.flag_id);
     setActionLoading(false);
   };
 
   const handleResolve = async (note) => {
     setActionLoading(true);
-    await onResolve(flag.flag_id, note);
+    // Only need to resolve one — the backend auto-resolves the rest
+    const pendingFlag = flags.find((f) => f.flag_status === "pending");
+    if (pendingFlag) await onResolve(pendingFlag.flag_id, note);
     setActionLoading(false);
     setShowRevoke(false);
   };
@@ -359,94 +375,153 @@ function FlagCard({ flag, onDismiss, onResolve }) {
   return (
     <>
       {showRevoke && (
-        <RevokeConfirmModal flag={flag} onConfirm={handleResolve}
-          onCancel={() => setShowRevoke(false)} loading={actionLoading} />
+        <RevokeConfirmModal
+          flag={primary}
+          onConfirm={handleResolve}
+          onCancel={() => setShowRevoke(false)}
+          loading={actionLoading}
+        />
       )}
+
       <div className="flag-card">
+        {/* ── Header ── */}
         <div className="flag-card__header">
           <div className="flag-card__left">
-            <span className="flag-rule-tag">{RULE_LABELS[flag.rule_name] || flag.rule_name}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+            {/* All rule tags for this certificate */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              {flags.map((f) => (
+                <span key={f.flag_id} className="flag-rule-tag">
+                  {RULE_LABELS[f.rule_name] || f.rule_name}
+                </span>
+              ))}
+              {flags.length > 1 && (
+                <span style={{
+                  padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800,
+                  background: "rgba(245,158,11,0.15)", color: "#f59e0b",
+                  border: "1px solid rgba(245,158,11,0.30)",
+                }}>
+                  {flags.length} flags
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <FileText size={16} color="#e10600" />
-              <span className="flag-card__student">{flag.student_name}</span>
+              <span className="flag-card__student">{primary.student_name}</span>
             </div>
             <p className="flag-card__cert">
-              {flag.cert_number} · {flag.degree} in {flag.major}
-              {flag.GPA ? ` · GPA ${parseFloat(flag.GPA).toFixed(2)}` : ""}
+              {primary.cert_number} · {primary.degree} in {primary.major}
+              {primary.GPA ? ` · GPA ${parseFloat(primary.GPA).toFixed(2)}` : ""}
             </p>
             <p className="flag-card__meta">
-              {flag.university_name} · Issued by{" "}
-              <strong style={{ color: "rgba(255,255,255,0.7)" }}>{flag.issued_by_name || "Unknown"}</strong>
+              {primary.university_name} · Issued by{" "}
+              <strong style={{ color: "rgba(255,255,255,0.7)" }}>
+                {primary.issued_by_name || "Unknown"}
+              </strong>
             </p>
           </div>
+
           <div className="flag-card__right">
             <span className="flag-status-badge" style={{
-              color: statusColor, background: statusColor + "22", border: `1px solid ${statusColor}44`,
+              color: statusColor,
+              background: statusColor + "22",
+              border: `1px solid ${statusColor}44`,
             }}>
-              {statusIcon} {flag.flag_status}
+              {overallStatus}
             </span>
-            <RiskBadge score={parseFloat(flag.risk_score)} />
+            {/* Show combined risk when multiple flags */}
+            <RiskBadge score={totalRisk} />
             <button className="flag-expand-btn" onClick={() => setExpanded(!expanded)}>
               <Eye size={14} /> {expanded ? "Less" : "Details"}
             </button>
           </div>
         </div>
-        <div className="flag-reason-box">
-          <p className="flag-reason-label">REASON</p>
-          <p className="flag-reason-text">{flag.reason}</p>
+
+        {/* ── Individual flag reasons ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+          {flags.map((f, i) => (
+            <div key={f.flag_id} className="flag-reason-box" style={{
+              borderLeft: `3px solid ${
+                f.risk_score >= 100 ? "#ef4444" :
+                f.risk_score >= 60  ? "#f59e0b" : "#64748b"
+              }`,
+              paddingLeft: 12,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <p className="flag-reason-label">
+                  {RULE_LABELS[f.rule_name] || f.rule_name}
+                </p>
+                <span style={{
+                  fontSize: 11, fontWeight: 800,
+                  color: f.risk_score >= 100 ? "#ef4444" : f.risk_score >= 60 ? "#f59e0b" : "#94a3b8",
+                }}>
+                  risk +{f.risk_score}
+                </span>
+              </div>
+              <p className="flag-reason-text">{f.reason}</p>
+            </div>
+          ))}
         </div>
+
+        {/* ── Expanded details ── */}
         {expanded && (
           <div className="flag-details">
             <div className="flag-details__grid">
               <div className="flag-detail-item">
                 <span className="flag-detail-label">National ID</span>
-                <span className="flag-detail-value">{flag.national_id}</span>
+                <span className="flag-detail-value">{primary.national_id}</span>
               </div>
               <div className="flag-detail-item">
                 <span className="flag-detail-label">Cert Status</span>
                 <span className="flag-detail-value" style={{ color: isRevoked ? "#ef4444" : "#22c55e" }}>
-                  {(flag.cert_status || "").toUpperCase()}
+                  {(primary.cert_status || "").toUpperCase()}
                 </span>
               </div>
               <div className="flag-detail-item">
                 <span className="flag-detail-label">Issued By Email</span>
-                <span className="flag-detail-value">{flag.issued_by_email || "—"}</span>
+                <span className="flag-detail-value">{primary.issued_by_email || "—"}</span>
               </div>
               <div className="flag-detail-item">
-                <span className="flag-detail-label">Flagged At</span>
-                <span className="flag-detail-value">{new Date(flag.flagged_at).toLocaleString()}</span>
+                <span className="flag-detail-label">First Flagged</span>
+                <span className="flag-detail-value">
+                  {new Date(primary.flagged_at).toLocaleString()}
+                </span>
               </div>
             </div>
-            {flag.review_note && (
-              <div className="flag-review-note">
-                <p className="flag-detail-label">REVIEW NOTE</p>
-                <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)" }}>{flag.review_note}</p>
-                {flag.reviewed_by_name && (
+
+            {/* Per-flag review notes */}
+            {flags.filter((f) => f.review_note).map((f) => (
+              <div key={f.flag_id} className="flag-review-note">
+                <p className="flag-detail-label">{RULE_LABELS[f.rule_name]} — REVIEW NOTE</p>
+                <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.65)" }}>{f.review_note}</p>
+                {f.reviewed_by_name && (
                   <p style={{ margin: "4px 0 0", fontSize: 11, color: "rgba(255,255,255,0.85)" }}>
-                    Reviewed by {flag.reviewed_by_name}
-                    {flag.resolved_at ? ` · ${new Date(flag.resolved_at).toLocaleString()}` : ""}
+                    Reviewed by {f.reviewed_by_name}
+                    {f.resolved_at ? ` · ${new Date(f.resolved_at).toLocaleString()}` : ""}
                   </p>
                 )}
               </div>
-            )}
+            ))}
           </div>
         )}
+
+        {/* ── Actions ── */}
         {isPending && (
           <div className="flag-actions">
             {isRevoked ? (
               <div className="flag-already-revoked">
                 <AlertTriangle size={14} />
                 Certificate already revoked.
-                <button className="flag-dismiss-btn" onClick={handleDismiss}
+                <button className="flag-dismiss-btn" onClick={handleDismissAll}
                   disabled={actionLoading} style={{ marginLeft: 12 }}>
-                  Dismiss Flag
+                  Dismiss All Flags
                 </button>
               </div>
             ) : (
               <>
-                <button className="flag-dismiss-btn" onClick={handleDismiss} disabled={actionLoading}>
+                <button className="flag-dismiss-btn" onClick={handleDismissAll} disabled={actionLoading}>
                   <CheckCircle2 size={14} />
-                  {actionLoading ? "Processing..." : "Dismiss (False Positive)"}
+                  {actionLoading ? "Processing..." : `Dismiss All (${flags.filter(f => f.flag_status === "pending").length} flags)`}
                 </button>
                 <button className="flag-revoke-btn" onClick={() => setShowRevoke(true)} disabled={actionLoading}>
                   <XCircle size={14} />
@@ -462,15 +537,35 @@ function FlagCard({ flag, onDismiss, onResolve }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// FRAUD ALERTS TAB
+// FRAUD ALERTS TAB  (groups flags by certificate)
 // ─────────────────────────────────────────────────────────────
 function FraudAlertsTab({ flags, onDismiss, onResolve, loading, onRefresh }) {
   const [filter, setFilter] = useState("pending");
-  const filtered = filter === "all" ? flags : flags.filter((f) => f.flag_status === filter);
+
+  // ── Group flags by certificate_id ──
+  const grouped = flags.reduce((acc, flag) => {
+    const key = flag.certificate_id;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(flag);
+    return acc;
+  }, {});
+
+  // Each group's overall status for filtering:
+  // A group is "pending" if any flag in it is pending
+  const groups = Object.values(grouped);
+
+  const filtered = groups.filter((group) => {
+    if (filter === "all") return true;
+    if (filter === "pending")   return group.some((f) => f.flag_status === "pending");
+    if (filter === "resolved")  return group.every((f) => f.flag_status === "resolved");
+    if (filter === "dismissed") return group.every((f) => f.flag_status === "dismissed");
+    return true;
+  });
+
   const counts = {
-    pending:   flags.filter((f) => f.flag_status === "pending").length,
-    dismissed: flags.filter((f) => f.flag_status === "dismissed").length,
-    resolved:  flags.filter((f) => f.flag_status === "resolved").length,
+    pending:   groups.filter((g) => g.some((f) => f.flag_status === "pending")).length,
+    resolved:  groups.filter((g) => g.every((f) => f.flag_status === "resolved")).length,
+    dismissed: groups.filter((g) => g.every((f) => f.flag_status === "dismissed")).length,
   };
 
   if (loading) {
@@ -501,6 +596,7 @@ function FraudAlertsTab({ flags, onDismiss, onResolve, loading, onRefresh }) {
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
+
       {filtered.length === 0 ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", gap: 16, padding: "60px 0" }}>
@@ -511,15 +607,19 @@ function FraudAlertsTab({ flags, onDismiss, onResolve, loading, onRefresh }) {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {filtered.map((flag) => (
-            <FlagCard key={flag.flag_id} flag={flag} onDismiss={onDismiss} onResolve={onResolve} />
+          {filtered.map((group) => (
+            <GroupedFlagCard
+              key={group[0].certificate_id}
+              flags={group}
+              onDismiss={onDismiss}
+              onResolve={onResolve}
+            />
           ))}
         </div>
       )}
     </div>
   );
 }
-
 // ─────────────────────────────────────────────────────────────
 // ADD PROGRAM MODAL
 // ─────────────────────────────────────────────────────────────
@@ -869,15 +969,16 @@ function ProgramsTab({ programs, onAdd, onRemove, loading }) {
 // ─────────────────────────────────────────────────────────────
 function RevokedCertsTab({ addToast }) {
   const [certificates, setCertificates] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]           = useState(true);
+  const [showBlocked, setShowBlocked]   = useState(true);
 
   const fetchRevoked = async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API}/certificates/revoked`, authHeader());
       setCertificates(res.data.certificates || []);
-    } catch (err) {
-      console.error("Failed to fetch revoked certificates:", err);
+    } catch {
+      addToast("info", "Error", "Failed to load revoked certificates.");
     } finally {
       setLoading(false);
     }
@@ -888,10 +989,21 @@ function RevokedCertsTab({ addToast }) {
   const handleAllowReissue = async (certId, certNumber) => {
     try {
       await axios.patch(`${API}/certificates/${certId}/allow-reissue`, {}, authHeader());
-      addToast("success", "Reissue Allowed", `Staff can now issue a new certificate to replace ${certNumber}.`);
+      addToast("success", "Reissue Allowed", `Staff can now reissue ${certNumber}.`);
       fetchRevoked();
     } catch (err) {
       addToast("info", "Error", err.response?.data?.message || "Failed to allow reissue.");
+    }
+  };
+
+  const handleNeverReissue = async (certId, certNumber) => {
+    if (!window.confirm(`Permanently block reissue for ${certNumber}?`)) return;
+    try {
+      await axios.patch(`${API}/certificates/${certId}/never-reissue`, {}, authHeader());
+      addToast("info", "Blocked", `${certNumber} is permanently blocked from reissue.`);
+      fetchRevoked();
+    } catch (err) {
+      addToast("info", "Error", err.response?.data?.message || "Failed to block reissue.");
     }
   };
 
@@ -904,90 +1016,245 @@ function RevokedCertsTab({ addToast }) {
     );
   }
 
+  // ── Group certificates by allow_reissue value ──
+  const undecided    = certificates.filter(c => c.allow_reissue === 0);
+  const neverReissue = certificates.filter(c => c.allow_reissue === 3);
+  const approved     = certificates.filter(c => c.allow_reissue === 1);
+  const reissued     = certificates.filter(c => c.allow_reissue === 2);
+
   if (certificates.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "center", gap: 16, padding: "60px 0" }}>
         <CheckCircle2 size={64} color="#2dce8a" />
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 16, margin: 0 }}>No revoked certificates</p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 16, margin: 0 }}>
+          No revoked certificates
+        </p>
       </div>
     );
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {certificates.map((cert) => (
-        <div key={cert.id} className="flag-card">
-          <div className="flag-card__header">
-            <div className="flag-card__left">
-              <span className="flag-rule-tag" style={{
-                background: "rgba(239,68,68,0.14)", color: "#ff7f7a", border: "1px solid rgba(239,68,68,0.25)",
-              }}>REVOKED</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
-                <FileText size={16} color="#e10600" />
-                <span className="flag-card__student">{cert.student_name}</span>
-              </div>
-              <p className="flag-card__cert">
-                {cert.cert_number} · {cert.degree} in {cert.major}
-                {cert.GPA ? ` · GPA ${parseFloat(cert.GPA).toFixed(2)}` : ""}
-              </p>
-              <p className="flag-card__meta">
-                {cert.university_name} · Issued by{" "}
-                <strong style={{ color: "rgba(255,255,255,0.7)" }}>{cert.issued_by}</strong>
-              </p>
-            </div>
-            <div className="flag-card__right">
-              <span className="flag-status-badge" style={{
-                color: cert.allow_reissue ? "#22c55e" : "#ef4444",
-                background: cert.allow_reissue ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
-                border: cert.allow_reissue ? "1px solid rgba(34,197,94,0.30)" : "1px solid rgba(239,68,68,0.30)",
-              }}>
-                {cert.allow_reissue ? "✅ Reissue Allowed" : "🔒 Reissue Blocked"}
-              </span>
-            </div>
+  const renderCert = (cert, mode) => (
+    <div key={cert.id} className="flag-card" style={{ marginBottom: 14 }}>
+      <div className="flag-card__header">
+        <div className="flag-card__left">
+          <span className="flag-rule-tag" style={{
+            background: "rgba(239,68,68,0.14)", color: "#ff7f7a",
+            border: "1px solid rgba(239,68,68,0.25)",
+          }}>REVOKED</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+            <FileText size={16} color="#e10600" />
+            <span className="flag-card__student">{cert.student_name}</span>
           </div>
-          {cert.revoke_reason && (
-            <div className="flag-reason-box">
-              <p className="flag-reason-label">REVOKE REASON</p>
-              <p className="flag-reason-text">{cert.revoke_reason}</p>
-            </div>
+          <p className="flag-card__cert">
+            {cert.cert_number} · {cert.degree} in {cert.major}
+            {cert.GPA ? ` · GPA ${parseFloat(cert.GPA).toFixed(2)}` : ""}
+          </p>
+          <p className="flag-card__meta">
+            Issued by <strong style={{ color: "rgba(255,255,255,0.7)" }}>{cert.issued_by}</strong>
+            {" · "}{new Date(cert.created_at).toLocaleDateString("en-GB")}
+          </p>
+        </div>
+        <div className="flag-card__right">
+          {mode === "undecided" && (
+            <span className="flag-status-badge" style={{
+              color: "#f59e0b", background: "rgba(245,158,11,0.12)",
+              border: "1px solid rgba(245,158,11,0.30)",
+            }}>
+              🔒 Pending Decision
+            </span>
           )}
-          <div className="flag-details" style={{ marginTop: 12 }}>
-            <div className="flag-details__grid">
-              <div className="flag-detail-item">
-                <span className="flag-detail-label">National ID</span>
-                <span className="flag-detail-value">{cert.national_id}</span>
-              </div>
-              <div className="flag-detail-item">
-                <span className="flag-detail-label">Graduation Date</span>
-                <span className="flag-detail-value">
-                  {new Date(cert.graduation_date).toLocaleDateString("en-GB")}
-                </span>
-              </div>
-              <div className="flag-detail-item">
-                <span className="flag-detail-label">Issued At</span>
-                <span className="flag-detail-value">{new Date(cert.created_at).toLocaleString()}</span>
-              </div>
-              <div className="flag-detail-item">
-                <span className="flag-detail-label">Certificate ID</span>
-                <span className="flag-detail-value">{cert.id}</span>
-              </div>
-            </div>
-          </div>
-          {!cert.allow_reissue && (
-            <div className="flag-actions">
-              <button className="flag-dismiss-btn"
-                onClick={() => handleAllowReissue(cert.id, cert.cert_number)}>
-                <CheckCircle2 size={14} /> Allow Reissue
-              </button>
-            </div>
+          {mode === "blocked" && (
+            <span className="flag-status-badge" style={{
+              color: "#ef4444", background: "rgba(239,68,68,0.12)",
+              border: "1px solid rgba(239,68,68,0.30)",
+            }}>
+              🚫 Never Reissue
+            </span>
+          )}
+          {mode === "approved" && (
+            <span className="flag-status-badge" style={{
+              color: "#22c55e", background: "rgba(34,197,94,0.12)",
+              border: "1px solid rgba(34,197,94,0.30)",
+            }}>
+              ✅ Reissue Approved
+            </span>
+          )}
+          {mode === "reissued" && (
+            <span className="flag-status-badge" style={{
+              color: "#60b0ff", background: "rgba(96,176,255,0.12)",
+              border: "1px solid rgba(96,176,255,0.30)",
+            }}>
+              ♻ Already Reissued
+            </span>
           )}
         </div>
-      ))}
+      </div>
+
+      {cert.revoke_reason && (
+        <div className="flag-reason-box">
+          <p className="flag-reason-label">REVOKE REASON</p>
+          <p className="flag-reason-text">{cert.revoke_reason}</p>
+        </div>
+      )}
+
+      <div className="flag-details" style={{ marginTop: 12 }}>
+        <div className="flag-details__grid">
+          <div className="flag-detail-item">
+            <span className="flag-detail-label">National ID</span>
+            <span className="flag-detail-value">{cert.national_id}</span>
+          </div>
+          <div className="flag-detail-item">
+            <span className="flag-detail-label">Graduation Date</span>
+            <span className="flag-detail-value">
+              {new Date(cert.graduation_date).toLocaleDateString("en-GB")}
+            </span>
+          </div>
+          <div className="flag-detail-item">
+            <span className="flag-detail-label">University</span>
+            <span className="flag-detail-value">{cert.university_name}</span>
+          </div>
+          <div className="flag-detail-item">
+            <span className="flag-detail-label">Certificate ID</span>
+            <span className="flag-detail-value">{cert.id}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Action buttons ── */}
+      <div className="flag-actions">
+
+        {/* Undecided: can Allow Reissue OR Never Reissue */}
+        {mode === "undecided" && (
+          <>
+            <button className="flag-dismiss-btn"
+              onClick={() => handleAllowReissue(cert.id, cert.cert_number)}>
+              <CheckCircle2 size={14} /> Allow Reissue
+            </button>
+            <button className="flag-revoke-btn"
+              onClick={() => handleNeverReissue(cert.id, cert.cert_number)}>
+              <XCircle size={14} /> Never Reissue
+            </button>
+          </>
+        )}
+
+        {/* Blocked (never reissue): can undo and allow reissue */}
+        {mode === "blocked" && (
+          <button className="flag-dismiss-btn"
+            onClick={() => handleAllowReissue(cert.id, cert.cert_number)}>
+            <CheckCircle2 size={14} /> Undo — Allow Reissue
+          </button>
+        )}
+
+        {/* Approved: nothing more to do, staff will reissue */}
+        {mode === "approved" && (
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+            Waiting for staff to issue the replacement certificate.
+          </p>
+        )}
+
+        {/* Reissued: fully done */}
+        {mode === "reissued" && (
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+            A replacement certificate has already been issued.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  const SectionHeader = ({ label, count, color, icon, open, onToggle }) => (
+    <button
+      onClick={onToggle}
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        width: "100%", padding: "14px 18px", borderRadius: 14, marginBottom: 14,
+        border: `1px solid ${color}33`,
+        background: `${color}0d`,
+        cursor: "pointer", textAlign: "left",
+        fontFamily: "var(--font)",
+      }}>
+      <span style={{ fontSize: 18 }}>{icon}</span>
+      <span style={{ fontSize: 15, fontWeight: 800, color: "white", flex: 1 }}>
+        {label}
+      </span>
+      <span style={{
+        padding: "3px 10px", borderRadius: 20,
+        background: `${color}22`, color, fontSize: 12, fontWeight: 800,
+      }}>
+        {count}
+      </span>
+      <ChevronDown size={16} style={{
+        color: "rgba(255,255,255,0.4)",
+        transform: open ? "rotate(180deg)" : "none",
+        transition: "transform 0.2s",
+      }} />
+    </button>
+  );
+
+  return (
+    <div>
+
+      {/* ── NEVER REISSUE section (top, most important) ── */}
+      {neverReissue.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <SectionHeader
+            label="Permanently Blocked — Never Reissue"
+            count={neverReissue.length}
+            color="#ef4444"
+            icon="🚫"
+            open={showBlocked}
+            onToggle={() => setShowBlocked(v => !v)}
+          />
+          {showBlocked && neverReissue.map(c => renderCert(c, "blocked"))}
+        </div>
+      )}
+
+      {/* ── UNDECIDED section ── */}
+      {undecided.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.55)",
+            textTransform: "uppercase", letterSpacing: "0.6px",
+            marginBottom: 14, padding: "0 4px",
+          }}>
+            ⏳ Awaiting Decision ({undecided.length})
+          </div>
+          {undecided.map(c => renderCert(c, "undecided"))}
+        </div>
+      )}
+
+      {/* ── REISSUE APPROVED section ── */}
+      {approved.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.55)",
+            textTransform: "uppercase", letterSpacing: "0.6px",
+            marginBottom: 14, padding: "0 4px",
+          }}>
+            ✅ Reissue Approved ({approved.length})
+          </div>
+          {approved.map(c => renderCert(c, "approved"))}
+        </div>
+      )}
+
+      {/* ── ALREADY REISSUED section ── */}
+      {reissued.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.55)",
+            textTransform: "uppercase", letterSpacing: "0.6px",
+            marginBottom: 14, padding: "0 4px",
+          }}>
+            ♻ Already Reissued ({reissued.length})
+          </div>
+          {reissued.map(c => renderCert(c, "reissued"))}
+        </div>
+      )}
+
     </div>
   );
 }
-
 // ─────────────────────────────────────────────────────────────
 // ADD STAFF MODAL
 // ─────────────────────────────────────────────────────────────

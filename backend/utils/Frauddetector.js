@@ -191,7 +191,7 @@ const checkSuspiciousDate = async (certData) => {
 // so we don't flag staff who happen to work at top universities
 // but are issuing this particular low-GPA cert.
 // ─────────────────────────────────────────────────────────────
-const checkGpaOutlier = async (certData) => {
+/*const checkGpaOutlier = async (certData) => {
   const GPA_THRESHOLD   = 3.90;  // what counts as "near perfect"
   const COUNT_THRESHOLD = 5;     // how many is suspicious
 
@@ -223,7 +223,7 @@ const checkGpaOutlier = async (certData) => {
   }
 
   return { fired: false };
-};
+};*/
 
 // ─────────────────────────────────────────────────────────────
 // RULE 5 — EDIT BEFORE ISSUE
@@ -484,7 +484,7 @@ const checkOffHours = async (certData) => {
 // when the account was created vs now. A threshold of 48h
 // gives new staff a grace period but still flags rapid abuse.
 // ─────────────────────────────────────────────────────────────
-const checkNewAccountIssue = async (certData) => {
+/*const checkNewAccountIssue = async (certData) => {
   const HOURS_THRESHOLD = 48; // accounts younger than this are flagged
 
   const [rows] = await db.query(
@@ -507,7 +507,7 @@ const checkNewAccountIssue = async (certData) => {
 
   return { fired: false };
 };
-
+*/
 // ─────────────────────────────────────────────────────────────
 // RULE REGISTRY
 // ─────────────────────────────────────────────────────────────
@@ -520,11 +520,11 @@ const RULES = [
   checkVelocity,
   checkCrossUniDuplicate,
   checkSuspiciousDate,
-  checkGpaOutlier,
+  
   checkEditBeforeIssue,
   checkRevokeReissue,
   checkOffHours,
-  checkNewAccountIssue,
+  
 ];
 
 // ─────────────────────────────────────────────────────────────

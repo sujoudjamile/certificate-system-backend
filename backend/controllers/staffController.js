@@ -34,6 +34,15 @@ const addStaff = asyncHandler(async (req, res) => {
     throw new AppError("Name and email are required", 400);
   }
 
+  const nameRegex = /^[a-zA-Z\u0600-\u06FF]+([ '-][a-zA-Z\u0600-\u06FF]+)+$/;
+
+if (!nameRegex.test(name.trim())) {
+  throw new AppError(
+    "Name must contain at least a first and last name, using letters only (no digits or special characters).",
+    400
+  );
+}
+
   if (!isValidEmail(email)) { //It checks that the email format is valid.
     throw new AppError("Invalid email format", 400);
   }

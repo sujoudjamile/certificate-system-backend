@@ -178,6 +178,14 @@ const issueCertificate = asyncHandler(async (req, res) => {
       );
     }
 
+    if (latestRevoked.allow_reissue === 3) {
+  throw new AppError(
+    "This certificate has been permanently blocked from reissue by an admin.",
+    403
+  );
+}
+
+
     // allow_reissue === 1 → fall through and issue normally ✅
   }
 
@@ -441,41 +449,65 @@ await connection.query(
 const getPendingReissue = asyncHandler(async (req, res) => {
   const { university_id } = req.user;
 
-  
-
   const [rows] = await db.query(
     `SELECT 
-       c.id AS revoked_cert_id,
-       c.cert_number AS revoked_cert_number,
-       c.degree, c.major, c.GPA, c.graduation_date,
-       c.student_record_id,
-       c.created_at AS originally_issued_at,
-       sn.id AS student_id,
-       sn.full_name AS student_name,
-       sn.national_id,
-       sr.email, sr.phone, sr.student_code,
-       ff.reason AS revoke_reason,
-       ff.resolved_at AS revoked_at,
-       reviewer.name AS revoked_by_name,
-       al.description AS allow_reissue_note
+        c.id AS revoked_cert_id,
+        c.cert_number AS revoked_cert_number,
+        c.degree,
+        c.major,
+        c.GPA,
+        c.graduation_date,
+        c.student_record_id,
+        c.created_at AS originally_issued_at,
+
+        sn.id AS student_id,
+        sn.full_name AS student_name,
+        sn.national_id,
+
+        sr.email,
+        sr.phone,
+        sr.student_code,
+
+        GROUP_CONCAT(DISTINCT ff.reason SEPARATOR ', ') AS revoke_reason,
+        MAX(ff.resolved_at) AS revoked_at,
+        MAX(reviewer.name) AS revoked_by_name,
+
+        MAX(al.description) AS allow_reissue_note
+
      FROM certificates c
-     JOIN students_new sn ON c.student_id = sn.id
-     JOIN student_records sr ON c.student_record_id = sr.id
-     LEFT JOIN fraud_flag ff ON ff.certificate_id = c.id 
-                             AND ff.status = 'resolved'
-     LEFT JOIN users reviewer ON ff.reviewed_by = reviewer.id
-     LEFT JOIN audit_log al ON al.certificate_id = c.id 
-                            AND al.action = 'ALLOW_REISSUE'
+
+     JOIN students_new sn 
+       ON c.student_id = sn.id
+
+     JOIN student_records sr 
+       ON c.student_record_id = sr.id
+
+     LEFT JOIN fraud_flag ff 
+       ON ff.certificate_id = c.id
+      AND ff.status = 'resolved'
+
+     LEFT JOIN users reviewer 
+       ON ff.reviewed_by = reviewer.id
+
+     LEFT JOIN audit_log al 
+       ON al.certificate_id = c.id
+      AND al.action = 'ALLOW_REISSUE'
+
      WHERE c.university_id = ?
        AND c.status = 'revoked'
        AND c.allow_reissue = 1
+
+     GROUP BY c.id
+
      ORDER BY c.created_at DESC`,
     [university_id]
   );
 
-  return res.json({ status: "success", pending_reissues: rows });
+  return res.json({
+    status: "success",
+    pending_reissues: rows
+  });
 });
-
 /*
 ==================================
 GET CERTIFICATES
@@ -981,8 +1013,15 @@ Staff clicks "Contact Admin" on a revoked cert (allow_reissue = 0).
 Sends one email to the university admin requesting approval.
 */
 const requestReissue = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { university_id, id: staffId, name: staffName } = req.user;
+ const { id } = req.params;
+  const { university_id, id: staffId } = req.user;
+
+  // Fetch staff name from DB instead of trusting the JWT
+  const [staffRows] = await db.query(
+    "SELECT name FROM users WHERE id = ?",
+    [staffId]
+  );
+  const staffName = staffRows.length > 0 ? staffRows[0].name : "Unknown Staff";
 
   const [rows] = await db.query(
     `SELECT c.id, c.cert_number, c.degree, c.major, c.status, c.allow_reissue,
@@ -1049,6 +1088,53 @@ const requestReissue = asyncHandler(async (req, res) => {
   return res.json({ status: "success", message: "Reissue request sent to admin." });
 });
 
+const neverReissue = asyncHandler(async (req, res) => {
+  const { id }                  = req.params;
+  const { role, university_id } = req.user;
+
+  const [rows] = await db.query(
+    "SELECT id, university_id, status, allow_reissue FROM certificates WHERE id = ?",
+    [id]
+  );
+
+  if (rows.length === 0) throw new AppError("Certificate not found", 404);
+
+  const cert = rows[0];
+
+  if (role !== "super_admin" && cert.university_id !== university_id)
+    throw new AppError("Access forbidden", 403);
+
+  if (cert.status !== "revoked")
+    throw new AppError("Only revoked certificates can be permanently blocked", 400);
+
+  if (cert.allow_reissue === 2)
+    throw new AppError("This certificate has already been reissued", 400);
+
+  if (cert.allow_reissue === 3)
+    throw new AppError("Already marked as never reissue", 400);
+
+  await db.query(
+    "UPDATE certificates SET allow_reissue = 3 WHERE id = ?",
+    [id]
+  );
+
+  await logAction({
+    user_id:        req.user.id,
+    university_id:  cert.university_id,
+    action:         "NEVER_REISSUE",
+    description:    `Permanently blocked reissue for certificate ID ${id}`,
+    status:         "success",
+    target_type:    "certificate",
+    target_id:      parseInt(id),
+    certificate_id: parseInt(id),
+    ip_address:     req.ip,
+  });
+
+  return res.json({
+    status:  "success",
+    message: "Certificate permanently blocked from reissue.",
+  });
+});
 
 module.exports = {
   issueCertificate,
@@ -1063,4 +1149,5 @@ module.exports = {
   getRevokedCertificates,
   allowReissue,
   requestReissue,
+  neverReissue,
 };
