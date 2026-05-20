@@ -158,6 +158,7 @@ function Hero() {
             if (error) setError("");
           }}
           onKeyDown={handleKeyDown}
+          style={{ color: "white", caretColor: "white" }}
         />
         {error && (
           <p style={{ color: "#ff6b6b", fontSize: "13px", margin: "-4px 0 8px", textAlign: "left" }}>
@@ -167,8 +168,8 @@ function Hero() {
         <button onClick={handleVerify}>Verify Certificate</button>
         <h5
           style={{
-            color: "rgba(255,255,255,0.5)",
-            fontSize: "13px",
+            color: "rgba(255,255,255,0.85)",
+            fontSize: "15px",
             fontWeight: "normal",
           }}
         >
@@ -184,7 +185,7 @@ function Hero() {
     <h2>Verify a PDF Certificate</h2>
   </div>
 
-  <p style={{ color: "rgba(255, 255, 255, 0.96)", fontSize: "13px", margin: "0 0 16px" }}>
+  <p style={{ color: "rgba(255, 255, 255, 0.96)", fontSize: "16px", margin: "0 0 16px", textAlign: "center", lineHeight: "1.6", fontWeight: "500" }}>
     Upload the original PDF certificate to verify its digital signature.
     The system checks the embedded PKCS#7 cryptographic signature automatically.
   </p>
@@ -251,9 +252,9 @@ function Hero() {
     {pdfLoading ? "Verifying..." : "Verify PDF Signature"}
   </button>
 
-  <h5 style={{ color: "rgba(255, 255, 255, 0.97)", fontSize: "12px", fontWeight: "normal", marginTop: 8 }}>
+ <p style={{ color: "rgba(255, 255, 255, 0.85)", fontSize: "16px", margin: "8px 0 0", textAlign: "center", lineHeight: "1.6", fontWeight: "500" }}>
     The certificate number is extracted automatically from the PDF
-  </h5>
+  </p>
 
   {/* ── Result ── */}
   {pdfResult && (
