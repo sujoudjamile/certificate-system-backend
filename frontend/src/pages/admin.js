@@ -1984,7 +1984,7 @@ function ExternalDegreesTab({ addToast }) {
           <h3 style={{ color: "white", margin: 0, fontSize: 20, fontWeight: 800 }}>
             Register Foreign Degree
           </h3>
-          <p style={{ margin: "5px 0 0", fontSize: 14, color: "rgba(255,255,255,0.78)" }}>
+          <p style={{ margin: "5px 0 0", fontSize: 15, color: "rgba(255,255,255,0.95)", fontWeight: 500 }}>
             Verify a foreign qualification so the student can enrol in graduate programs.
           </p>
         </div>
@@ -2112,7 +2112,7 @@ function ExternalDegreesTab({ addToast }) {
                       <p style={{ margin: "3px 0 0", fontSize: 14, color: "rgba(255,255,255,0.82)" }}>
                         {d.major} · {d.institution}, {d.country} · {d.graduation_year}
                       </p>
-                      <p style={{ margin: "2px 0 0", fontSize: 11, color: "rgba(255,255,255,0.28)" }}>
+                      <p style={{ margin: "2px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>
                         Verified by {d.verified_by_name} · {new Date(d.verified_at).toLocaleDateString("en-GB")}
                       </p>
                     </div>
