@@ -144,8 +144,8 @@ const checkCrossUniDuplicate = async (certData) => {
 //   Future dates are always wrong — you can't graduate
 //   before it happens.
 // ─────────────────────────────────────────────────────────────
-const checkSuspiciousDate = async (certData) => {
-  const YEARS_BACK_THRESHOLD = 6;
+  const checkSuspiciousDate = async (certData) => {
+  const YEARS_BACK_THRESHOLD = 1;
 
   const gradDate  = new Date(certData.graduation_date);
   const today     = new Date();

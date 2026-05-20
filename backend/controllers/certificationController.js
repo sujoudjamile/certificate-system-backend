@@ -128,7 +128,7 @@ const issueCertificate = asyncHandler(async (req, res) => {
 
   // ── Fetch student ──
   const [studentRows] = await db.query(
-    `SELECT s.id, s.full_name, sr.email, s.national_id, sr.id AS record_id
+    `SELECT s.id, s.full_name, sr.email, s.national_id, sr.id AS record_id, s.date_of_birth
      FROM students_new s
      JOIN student_records sr ON sr.student_id = s.id
      WHERE s.id = ? AND sr.university_id = ? AND sr.degree = ? AND sr.major = ?
@@ -142,6 +142,31 @@ const issueCertificate = asyncHandler(async (req, res) => {
   const student           = studentRows[0];
   const student_record_id = student.record_id;
 
+// ── Graduation date vs date of birth validation ──
+  console.log("DEBUG date_of_birth raw:", student.date_of_birth, typeof student.date_of_birth);
+  const birthYear   = new Date(student.date_of_birth).getFullYear();
+  const gradYear    = parseInt(String(graduation_date).substring(0, 4));
+  const currentYear = new Date().getFullYear();
+
+  console.log("DEBUG birthYear:", birthYear, "gradYear:", gradYear);
+
+  if (isNaN(birthYear) || isNaN(gradYear)) {
+    throw new AppError("Invalid date provided. Please check student birth date and graduation date.", 400);
+  }
+
+  if (gradYear > currentYear) {
+    throw new AppError(
+      `Invalid graduation year: ${gradYear} is in the future. Graduation year cannot exceed the current year (${currentYear}).`,
+      400
+    );
+  }
+
+  if (gradYear - birthYear < 20) {
+    throw new AppError(
+      `Invalid graduation year: student born in ${birthYear} must be at least 20 years old to graduate.`,
+      400
+    );
+  }
   // ── Check existing certs for this student record ──
   // Fetch ALL certs for this record so we handle the case where
   // there is both a revoked cert (allow_reissue=1 or 2) AND a
