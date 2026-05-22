@@ -108,6 +108,33 @@ const addExternalDegree = asyncHandler(async (req, res) => {
 
   if (studentRows.length > 0) {
     studentId = studentRows[0].id;
+
+    // ── Age at graduation validation for existing students ──
+    const [dobRows] = await db.query(
+      "SELECT date_of_birth FROM students_new WHERE id = ?",
+      [studentId]
+    );
+    if (dobRows.length > 0) {
+      const birthYear = new Date(dobRows[0].date_of_birth).getFullYear();
+      const ageAtGraduation = parsedYear - birthYear;
+      const minAge = degree === "Master" ? 22 : 20;
+      const degreeLabel = degree === "Master" ? "Master's" : "Bachelor's";
+
+      if (ageAtGraduation < minAge) {
+        throw new AppError(
+          `Invalid graduation year: student must be at least ${minAge} years old at graduation for a ${degreeLabel} degree.`,
+          400
+        );
+      }
+
+      if (ageAtGraduation > 60) {
+        throw new AppError(
+          `Invalid graduation year: graduation year ${parsedYear} is too far from ` +
+          `the student's birth year (${birthYear}). Please verify the graduation year.`,
+          400
+        );
+      }
+    }
   } else {
     if (!full_name || !date_of_birth)
       throw new AppError(
@@ -134,10 +161,12 @@ const addExternalDegree = asyncHandler(async (req, res) => {
 
     // Cross-check: minimum age at graduation based on degree
     const birthYear = dob.getFullYear();
-    const minAge    = degree === "Master" ? 20 : 18;
+    const minAge = degree === "Master" ? 22 : 20;
+    const degreeLabel = degree === "Master" ? "Master's" : "Bachelor's";
+
     if (parsedYear - birthYear < minAge)
       throw new AppError(
-        `Graduation year is not valid. A student cannot graduate with a ${degree}'s degree at age ${parsedYear - birthYear}.`,
+        `Invalid graduation year: student must be at least ${minAge} years old at graduation for a ${degreeLabel} degree.`,
         400
       );
 
