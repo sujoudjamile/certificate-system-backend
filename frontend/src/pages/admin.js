@@ -1258,13 +1258,13 @@ function RevokedCertsTab({ addToast }) {
 // ─────────────────────────────────────────────────────────────
 // ADD STAFF MODAL
 // ─────────────────────────────────────────────────────────────
-function AddStaffModal({ onClose, onSubmit }) {
+function AddStaffModal({ onClose, onSubmit, onError, onSuccess }) {
   const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!name || !email) return alert("Please fill all fields");
+    if (!name || !email) return onError("Please fill all fields");
     setLoading(true);
     try {
       const res = await axios.post(`${API}/staff`, { name, email }, authHeader());
@@ -1274,10 +1274,10 @@ function AddStaffModal({ onClose, onSubmit }) {
         verification_expires: res.data.verification_expires,
         university_name: res.data.university_name,
       });
-      alert("Staff member added successfully! ✅");
+      onSuccess("Staff Member Added", "Staff member added successfully.");
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || "Something went wrong");
+      onError(err.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -2912,6 +2912,8 @@ export default function UniversityAdmin() {
         <AddStaffModal
           onClose={() => setIsModalOpen(false)}
           onSubmit={(staff) => setStaffList((prev) => [...prev, staff])}
+          onError={(msg) => addToast("info", "Error", msg)}
+          onSuccess={(title, msg) => addToast("success", title, msg)}
         />
       )}
 

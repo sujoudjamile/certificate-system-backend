@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Crown, RefreshCw, LogOut, Plus, UserPlus, GraduationCap } from "lucide-react";
 import "./SuperAdmin.css";
@@ -24,6 +24,26 @@ function getStatus(admin) {
   return "active";
 }
 
+function ToastContainer({ toasts, onDismiss }) {
+  return (
+    <div className="toast-container">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast toast--${t.type}`}>
+          <div className="toast__icon">
+            {t.type === "success" && <span>✅</span>}
+            {t.type === "info"    && <span>ℹ️</span>}
+            {t.type === "fraud"   && <span>⚠️</span>}
+          </div>
+          <div className="toast__body">
+            <p className="toast__title">{t.title}</p>
+            <p className="toast__msg">{t.message}</p>
+          </div>
+          <button className="toast__close" onClick={() => onDismiss(t.id)}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
 /* ─────────────────────────────────────────────
    NAVBAR
 ───────────────────────────────────────────── */
@@ -78,7 +98,7 @@ function StatsRow({ adminCount }) {
 /* ─────────────────────────────────────────────
    ADMIN CARD
 ───────────────────────────────────────────── */
-function AdminCard({ admin, onRefresh }) {
+function AdminCard({ admin, onRefresh, onToast }) {
   const status   = getStatus(admin);
   const active   = isActive(admin.is_active);
   const verified = isVerified(admin.is_verified);
@@ -91,9 +111,9 @@ function AdminCard({ admin, onRefresh }) {
         body: JSON.stringify({ email: admin.email }),
       });
       const data = await res.json();
-      alert(data.message || "Activation email sent!");
+      onToast("success", "Email Sent", data.message || "Activation email sent!");
     } catch {
-      alert("Failed to resend activation email");
+      onToast("info", "Error", "Failed to resend activation email");
     }
   };
 
@@ -180,14 +200,14 @@ function AdminCard({ admin, onRefresh }) {
 /* ─────────────────────────────────────────────
    ADMIN LIST
 ───────────────────────────────────────────── */
-function AdminList({ admins, onRefresh }) {
+function AdminList({ admins, onRefresh, onToast }) {
   if (!admins || admins.length === 0)
     return <p className="admin-empty-text">No admins found.</p>;
 
   return (
     <div className="admin-cards">
       {admins.map((admin) => (
-        <AdminCard key={admin.id} admin={admin} onRefresh={onRefresh} />
+        <AdminCard key={admin.id} admin={admin} onRefresh={onRefresh} onToast={onToast} />
       ))}
     </div>
   );
@@ -196,14 +216,14 @@ function AdminList({ admins, onRefresh }) {
 /* ─────────────────────────────────────────────
    REGISTER NEW UNIVERSITY MODAL
 ───────────────────────────────────────────── */
-function RegisterUniversityModal({ onClose, onSubmit }) {
+function RegisterUniversityModal({ onClose, onSubmit, onError }) {
   const [name,      setName]      = useState("");
   const [adminName, setAdminName] = useState("");
   const [email,     setEmail]     = useState("");
   const [loading,   setLoading]   = useState(false);
 
   const handleSubmit = async () => {
-    if (!name || !adminName || !email) { alert("All fields are required"); return; }
+    if (!name || !adminName || !email) { onError("All fields are required"); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API}/universities`, {
@@ -213,11 +233,10 @@ function RegisterUniversityModal({ onClose, onSubmit }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed");
-      alert("University registered successfully ✅");
       onSubmit();
       onClose();
     } catch (err) {
-      alert(err.message);
+      onError(err.message || "Failed");
     } finally {
       setLoading(false);
     }
@@ -252,7 +271,7 @@ function RegisterUniversityModal({ onClose, onSubmit }) {
 /* ─────────────────────────────────────────────
    ADD ADMIN TO EXISTING UNIVERSITY MODAL
 ───────────────────────────────────────────── */
-function AddAdminModal({ onClose, onSubmit, admins }) {
+function AddAdminModal({ onClose, onSubmit, admins, onError }) {
   const [universities, setUniversities] = useState([]);
   const [uniId,        setUniId]        = useState("");
   const [adminName,    setAdminName]    = useState("");
@@ -277,14 +296,14 @@ function AddAdminModal({ onClose, onSubmit, admins }) {
     fetch(`${API}/universities`, { headers: authHeader().headers })
       .then(r => r.json())
       .then(d => setUniversities(d.universities || []))
-      .catch(() => alert("Failed to load universities"))
+      .catch(() => onError("Failed to load universities"))
       .finally(() => setFetching(false));
   }, []);
 
   const selectedUni = universities.find(u => String(u.id) === String(uniId));
 
   const handleSubmit = async () => {
-    if (!uniId || !adminName || !email) { alert("All fields are required"); return; }
+    if (!uniId || !adminName || !email) { onError("All fields are required"); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API}/users/admins/add-to-university`, {
@@ -298,7 +317,7 @@ function AddAdminModal({ onClose, onSubmit, admins }) {
       onSubmit();
       onClose();
     } catch (err) {
-      alert(err.message);
+      onError(err.message || "Failed");
     } finally {
       setLoading(false);
     }
@@ -404,6 +423,17 @@ export default function SuperAdmin() {
   const [admins,       setAdmins]       = useState([]);
   const [showRegUni,   setShowRegUni]   = useState(false);
   const [showAddAdmin, setShowAddAdmin] = useState(false);
+  const [toasts,       setToasts]       = useState([]);
+
+  const addToast = useCallback((type, title, message) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 6000);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const handleSignOut = () => {
     localStorage.removeItem("token");
@@ -424,6 +454,7 @@ export default function SuperAdmin() {
 
   return (
     <div className="admin-dashboard">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <AdminNavbar onSignOut={handleSignOut} onRefresh={fetchAdmins} />
 
       <main className="admin-body">
@@ -441,11 +472,11 @@ export default function SuperAdmin() {
           </div>
         </div>
 
-        <AdminList admins={admins} onRefresh={fetchAdmins} />
+       <AdminList admins={admins} onRefresh={fetchAdmins} onToast={addToast} />
       </main>
 
-      {showRegUni   && <RegisterUniversityModal onClose={() => setShowRegUni(false)}   onSubmit={fetchAdmins} />}
-      {showAddAdmin && <AddAdminModal           onClose={() => setShowAddAdmin(false)} onSubmit={fetchAdmins} admins={admins} />}
+      {showRegUni && <RegisterUniversityModal onClose={() => setShowRegUni(false)} onSubmit={() => { fetchAdmins(); addToast("success", "University Registered", "University registered successfully."); }} onError={(msg) => addToast("info", "Error", msg)} />}
+      {showAddAdmin && <AddAdminModal onClose={() => setShowAddAdmin(false)} onSubmit={() => { fetchAdmins(); addToast("success", "Admin Added", "Admin account created and activation email sent."); }} onError={(msg) => addToast("info", "Error", msg)} admins={admins} />}
     </div>
   );
 }
