@@ -26,3 +26,6 @@ unseal-vault.ps1
 .env.development.local
 .env.test.local
 .env.production.local
+
+certs/rootCA_key.pem
+uploads/

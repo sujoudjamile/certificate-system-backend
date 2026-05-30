@@ -280,6 +280,62 @@ function RecentAlertsPreview({ flags, onViewAll }) {
 // ─────────────────────────────────────────────────────────────
 // REVOKE CONFIRMATION MODAL
 // ─────────────────────────────────────────────────────────────
+function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel, danger = true }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-box" style={{ maxWidth: 400 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+            background: danger ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <AlertTriangle size={22} style={{ color: danger ? "#ef4444" : "#f59e0b" }} />
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "white" }}>{title}</p>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+              This action cannot be undone
+            </p>
+          </div>
+        </div>
+        <div style={{
+          background: danger ? "rgba(239,68,68,0.07)" : "rgba(245,158,11,0.07)",
+          border: `1px solid ${danger ? "rgba(239,68,68,0.20)" : "rgba(245,158,11,0.20)"}`,
+          borderRadius: 10, padding: "12px 14px", marginBottom: 20,
+        }}>
+          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.80)", lineHeight: 1.5 }}>
+            {message}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1, padding: "12px", borderRadius: 11, border: "none",
+              background: danger ? "#dc2626" : "#d97706",
+              color: "white", fontWeight: 700, fontSize: 14,
+              cursor: "pointer", fontFamily: "var(--font)",
+            }}>
+            {confirmLabel}
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1, padding: "12px", borderRadius: 11,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.05)",
+              color: "rgba(255,255,255,0.60)",
+              cursor: "pointer", fontFamily: "var(--font)", fontSize: 14,
+            }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RevokeConfirmModal({ flag, onConfirm, onCancel, loading }) {
   const [note, setNote] = useState("");
   return (
@@ -971,6 +1027,7 @@ function RevokedCertsTab({ addToast }) {
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [showBlocked, setShowBlocked]   = useState(true);
+  const [confirmNever, setConfirmNever] = useState(null);
 
   const fetchRevoked = async () => {
     setLoading(true);
@@ -996,8 +1053,13 @@ function RevokedCertsTab({ addToast }) {
     }
   };
 
-  const handleNeverReissue = async (certId, certNumber) => {
-    if (!window.confirm(`Permanently block reissue for ${certNumber}?`)) return;
+  const handleNeverReissue = (certId, certNumber) => {
+    setConfirmNever({ certId, certNumber });
+  };
+
+  const doNeverReissue = async () => {
+    const { certId, certNumber } = confirmNever;
+    setConfirmNever(null);
     try {
       await axios.patch(`${API}/certificates/${certId}/never-reissue`, {}, authHeader());
       addToast("info", "Blocked", `${certNumber} is permanently blocked from reissue.`);
@@ -1194,7 +1256,15 @@ function RevokedCertsTab({ addToast }) {
 
   return (
     <div>
-
+      {confirmNever && (
+        <ConfirmModal
+          title="Permanently block reissue?"
+          message={`${confirmNever.certNumber} will be permanently blocked from ever being reissued.`}
+          confirmLabel="Yes, block permanently"
+          onConfirm={doNeverReissue}
+          onCancel={() => setConfirmNever(null)}
+        />
+      )}
       {/* ── NEVER REISSUE section (top, most important) ── */}
       {neverReissue.length > 0 && (
         <div style={{ marginBottom: 28 }}>
@@ -1798,7 +1868,8 @@ function ExternalDegreesTab({ addToast }) {
   const [showList,      setShowList]      = useState(false);
   const [allExtDegrees, setAllExtDegrees] = useState([]);
   const [listLoading,   setListLoading]   = useState(false);
-  const [deletingId,    setDeletingId]    = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [listSearch,    setListSearch]    = useState("");
 
   const ALLOWED_LEVELS = ["undergraduate", "graduate"];
@@ -1853,8 +1924,13 @@ function ExternalDegreesTab({ addToast }) {
   };
 
   // ── Delete external degree ──
-  const handleDelete = async (id, label) => {
-    if (!window.confirm(`Delete external degree: ${label}?`)) return;
+  const handleDelete = (id, label) => {
+    setConfirmDelete({ id, label });
+  };
+
+  const doDelete = async () => {
+    const { id, label } = confirmDelete;
+    setConfirmDelete(null);
     setDeletingId(id);
     try {
       await axios.delete(`${API}/external-degrees/${id}`, authHeader());
@@ -1978,6 +2054,15 @@ function ExternalDegreesTab({ addToast }) {
 
   return (
     <div>
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete foreign degree?"
+          message={`Delete: ${confirmDelete.label}?`}
+          confirmLabel="Yes, delete"
+          onConfirm={doDelete}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
       {/* ── Header row ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
@@ -2589,7 +2674,7 @@ export default function UniversityAdmin() {
   const [toasts,          setToasts]          = useState([]);
   const [revokedCerts,    setRevokedCerts]    = useState([]);
   const [overviewSchedule, setOverviewSchedule] = useState(null);
-
+  const [confirmToggle, setConfirmToggle] = useState(null);
   const prevFlagCountRef = useRef(0);
   const pollIntervalRef  = useRef(null);
 
@@ -2724,9 +2809,13 @@ export default function UniversityAdmin() {
   };
 
 
-  const handleToggleStatus = async (staffId, staffName, activate) => {
-  const action = activate ? "activate" : "deactivate";
-  if (!window.confirm(`Are you sure you want to ${action} ${staffName}?`)) return;
+  const handleToggleStatus = (staffId, staffName, activate) => {
+  setConfirmToggle({ staffId, staffName, activate });
+};
+
+const doToggleStatus = async () => {
+  const { staffId, staffName, activate } = confirmToggle;
+  setConfirmToggle(null);
   try {
     await axios.patch(`${API}/staff/${staffId}/toggle-status`, {}, authHeader());
     addToast(
@@ -2736,7 +2825,7 @@ export default function UniversityAdmin() {
     );
     fetchStaff(admin);
   } catch (err) {
-    addToast("info", "Error", err.response?.data?.message || `Failed to ${action} staff.`);
+    addToast("info", "Error", err.response?.data?.message || `Failed to ${activate ? "activate" : "deactivate"} staff.`);
   }
 };
 
@@ -2792,7 +2881,16 @@ export default function UniversityAdmin() {
   return (
     <div className="uni-dashboard">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
+       {confirmToggle && (
+   <ConfirmModal
+    title={`${confirmToggle.activate ? "Activate" : "Deactivate"} staff member?`}
+    message={`Are you sure you want to ${confirmToggle.activate ? "activate" : "deactivate"} ${confirmToggle.staffName}?`}
+    confirmLabel={confirmToggle.activate ? "Yes, activate" : "Yes, deactivate"}
+    onConfirm={doToggleStatus}
+    onCancel={() => setConfirmToggle(null)}
+    danger={!confirmToggle.activate}
+  />
+   )}
       <UniNavbar
         universityName={admin?.university_name ?? "No University Assigned"}
         adminName={admin?.name ?? "Unknown Admin"}

@@ -8,3 +8,18 @@ unseal-vault.ps1
 *.exe
 backend/node_modules/
 frontend/node_modules/
+
+# CRITICAL - private keys
+certs/rootCA_key.pem
+*.key.pem
+
+# Uploaded files
+backend/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

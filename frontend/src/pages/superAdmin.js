@@ -119,7 +119,6 @@ function AdminCard({ admin, onRefresh, onToast }) {
 
   const handleToggle = async () => {
     const action = active ? "deactivate" : "activate";
-    if (!window.confirm(`Are you sure you want to ${action} ${admin.name}'s account?`)) return;
     try {
       const res = await fetch(`${API}/users/admins/${admin.id}/toggle-status`, {
         method: "PATCH",
@@ -127,9 +126,10 @@ function AdminCard({ admin, onRefresh, onToast }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed");
+      onToast("success", `Admin ${active ? "Deactivated" : "Activated"}`, `${admin.name}'s account has been ${active ? "deactivated" : "activated"}.`);
       onRefresh();
     } catch (err) {
-      alert(err.message);
+      onToast("info", "Error", err.message);
     }
   };
 
@@ -313,7 +313,6 @@ function AddAdminModal({ onClose, onSubmit, admins, onError }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed");
-      alert(data.message);
       onSubmit();
       onClose();
     } catch (err) {

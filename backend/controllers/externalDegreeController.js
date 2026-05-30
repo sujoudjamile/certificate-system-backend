@@ -76,12 +76,12 @@ const addExternalDegree = asyncHandler(async (req, res) => {
     throw new AppError("Major must contain letters only (no digits or special characters).", 400);
 
   // Institution: letters, digits, spaces, and basic punctuation
-  const institutionRegex = /^[a-zA-Z\u0600-\u06FF0-9][a-zA-Z\u0600-\u06FF0-9 '.&,-]{2,}$/;
+  const institutionRegex = /^[a-zA-Z\u0600-\u06FF][a-zA-Z\u0600-\u06FF '.&,-]{2,}$/;
   if (!institutionRegex.test(institution.trim()))
-    throw new AppError(
-      "Institution name must be at least 3 characters and can only contain letters, numbers, spaces, and basic punctuation.",
-      400
-    );
+  throw new AppError(
+    "Institution name must be at least 3 characters and can only contain letters, spaces, and basic punctuation.",
+    400
+  );
 
   // Country: letters and spaces only
   const countryRegex = /^[a-zA-Z\u0600-\u06FF]+(?:[ '-][a-zA-Z\u0600-\u06FF]+)*$/;

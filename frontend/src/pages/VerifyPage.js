@@ -12,6 +12,12 @@ export default function VerifyPage() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const addToast = (type, title, message) => {
+  const id = Date.now();
+  setToasts(prev => [...prev, { id, type, title, message }]);
+  setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+};
 
   useEffect(() => {
     if (cert_number) verify(cert_number);
@@ -35,12 +41,12 @@ export default function VerifyPage() {
   };
 
   const downloadPdf = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Please log in to download the certificate PDF.");
-      navigate("/login");
-      return;
-    }
+  const token = localStorage.getItem("token");
+  if (!token) {
+    addToast("error", "Authentication Required", "Please log in to download the certificate PDF.");
+    setTimeout(() => navigate("/login"), 2000);
+    return;
+  }
     const certId = result?.certificate?.id;
     if (!certId) return;
     setPdfLoading(true);
@@ -58,8 +64,8 @@ export default function VerifyPage() {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Could not download PDF. Please ensure you're logged in.");
-    } finally {
+    addToast("error", "Download Failed", "Could not download PDF. Please ensure you're logged in.");
+  } finally {
       setPdfLoading(false);
     }
   };
@@ -247,12 +253,12 @@ export default function VerifyPage() {
                 )}
 
                 {/* PDF Button */}
-                {isValid && (
-                  <button
-                    className="vp-pdf-btn"
-                    onClick={downloadPdf}
-                    disabled={pdfLoading}
-                  >
+                {isValid && localStorage.getItem("token") && (
+              <button
+               className="vp-pdf-btn"
+               onClick={downloadPdf}
+               disabled={pdfLoading}
+                >
                     {pdfLoading ? (
                       <>
                         <div className="vp-pdf-btn__spinner" />
@@ -288,11 +294,47 @@ export default function VerifyPage() {
 
           </div>
         )}
-
         {/* Powered by */}
         <p className="vp-footer">
           Secured by <strong>CertifyLB</strong> · SHA-256 + RSA-PSS cryptographic verification
         </p>
+
+        {/* Toast notifications */}
+        <div style={{
+          position: "fixed", bottom: 24, right: 24,
+          display: "flex", flexDirection: "column", gap: 10,
+          zIndex: 9999, pointerEvents: "none",
+        }}>
+          {toasts.map(t => (
+            <div key={t.id} style={{
+              display: "flex", alignItems: "flex-start", gap: 12,
+              padding: "14px 18px", borderRadius: 14, minWidth: 280, maxWidth: 360,
+              pointerEvents: "auto",
+              background: t.type === "success"
+                ? "rgba(20, 40, 20, 0.97)"
+                : "rgba(40, 18, 18, 0.97)",
+              border: `1px solid ${t.type === "success" ? "rgba(34,197,94,0.35)" : "rgba(239,68,68,0.35)"}`,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+              animation: "slideInToast 0.25s ease",
+            }}>
+              <div style={{
+                width: 8, height: 8, borderRadius: "50%", marginTop: 5, flexShrink: 0,
+                background: t.type === "success" ? "#22c55e" : "#ef4444",
+                boxShadow: `0 0 8px ${t.type === "success" ? "#22c55e" : "#ef4444"}`,
+              }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13.5,
+                  color: t.type === "success" ? "#4ade80" : "#f87171" }}>
+                  {t.title}
+                </div>
+                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)", marginTop: 3 }}>
+                  {t.message}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   );
